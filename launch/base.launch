@@ -1,0 +1,10 @@
+<launch>
+  <arg name="message_display" default="screen" doc="output type"/>
+  
+  <node pkg="gantry_robot" type="gantry_robot" name="gantry_robot" output="$(arg message_display)">
+    <param name="serial_port" value="/dev/ttyUSB0" />
+    <param name="baud_rate" value="57600" />
+    <param name="slave_num" value="13" />
+    <param name="node_name" value="gantry_robot" />
+  </node>
+</launch>
