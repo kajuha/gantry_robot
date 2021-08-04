@@ -1,5 +1,11 @@
 #pragma once
 
+#include <modbus.h>
+
+#include "L7P.h"
+
+#define MAX_DATA_SIZE   2   // DINT, double int, int = 16 bits, total 32 bits <-- modbus
+
 #define ACT_POS 0x600E
 #define ACT_SPD 0x6018
 
@@ -14,3 +20,5 @@ enum class ObjAccess {
 };
 
 int32_t getObjType(int32_t address);
+int32_t setAxisParameter(modbus_t* ctx, int32_t id, int32_t index, int32_t value, OnOff read_check);
+int32_t getAxisParameter(modbus_t* ctx, int32_t id, int32_t index, int32_t* value);

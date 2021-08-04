@@ -4,8 +4,32 @@
 
 #include <modbus.h>
 
+#define AXIS_X  11
+#define AXIS_Y  12
+#define AXIS_Z  13
+
+#define HOMING_SPEED_X  5000
+#define HOMING_SPEED_Y  5000
+#define HOMING_SPEED_Z  5000
+#define HOMING_OFFSET_X 131072
+#define HOMING_OFFSET_Y 5160
+#define HOMING_OFFSET_Z 8097
+#define HOMING_DONE_BEHAVIOUR_X OnOff::off
+#define HOMING_DONE_BEHAVIOUR_Y OnOff::on
+#define HOMING_DONE_BEHAVIOUR_Z OnOff::on
+
 #define READ_COIL_ADDR  0x00
 #define READ_COIL_SIZE  0x40
+#define READ_REG_SIZE   0x10
+#define WRITE_COIL_SIZE 0x20
+
+enum class CommandCase {
+	NONE, HOME, POSITION, JOG
+};
+
+enum class FunctionCase {
+	INIT, SET, ACTION, IDLE
+};
 
 enum class OnOff {
     on = 1,
@@ -18,8 +42,6 @@ enum class AxisCommand {
     sv_on = 0x0C, start = 0x10, pause = 0x11, hstart = 0x13,
     jstart = 0x1B, jdir = 0x1C
 };
-
-int32_t setAxisCommand(modbus_t* ctx, AxisCommand axisCommand, OnOff onOff);
 
 enum class ModbusCmd {
     ReadCoils, WriteSingleCoil, WriteMultiCoils,
@@ -34,6 +56,7 @@ class ModbusMsg {
     uint16_t* values;
 };
 
-int32_t getAxisStatus(modbus_t* ctx, gantry_robot::Status* status);
+int32_t setAxisCommand(modbus_t* ctx, int32_t id, AxisCommand axisCommand, OnOff onOff);
+int32_t getAxisStatus(modbus_t* ctx, int32_t id, gantry_robot::Status* status);
 
-int32_t setHomingParameters(modbus_t* ctx, int32_t speed, int32_t offset, OnOff done_behaviour);
+int32_t setHomingParameters(modbus_t* ctx, int32_t id, int32_t speed, int32_t offset, OnOff done_behaviour);

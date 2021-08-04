@@ -31,7 +31,9 @@ class NARRAY {
     int nArray4;
 };
 
-void modbusLoop(int rate, queue<NARRAY>* qarr, int* isModbusLoopEnd) {
+gantry_robot::Info info;
+
+void modbusLoop(int rate, queue<NARRAY>* qarr, int* isModbusLoopEnd, ros::Publisher* pub_info, modbus_t* ctx) {
     int size;
 	ros::Time ts_now;
 
@@ -48,6 +50,21 @@ void modbusLoop(int rate, queue<NARRAY>* qarr, int* isModbusLoopEnd) {
 			qarr->pop();
 		} else {
 		}
+
+		// if (!getAxisStatus(ctx, AXIS_X, &info.axisX.status)) printf("getAxisStatus AXIS_X error\n");		
+		// if (!getAxisParameter(ctx, AXIS_X, ACT_POS, &info.axisX.position)) printf("getAxisParameter AXIS_X error\n");
+		// if (!getAxisParameter(ctx, AXIS_X, ACT_SPD, &info.axisX.speed)) printf("getAxisParameter AXIS_X error\n");
+
+		// if (!getAxisStatus(ctx, AXIS_Y, &info.axisY.status)) printf("getAxisStatus AXIS_Y error\n");		
+		// if (!getAxisParameter(ctx, AXIS_Y, ACT_POS, &info.axisY.position)) printf("getAxisParameter AXIS_Y error\n");
+		// if (!getAxisParameter(ctx, AXIS_Y, ACT_SPD, &info.axisY.speed)) printf("getAxisParameter AXIS_Y error\n");
+
+		// if (!getAxisStatus(ctx, AXIS_Z, &info.axisZ.status)) printf("getAxisStatus AXIS_Z error\n");		
+		// if (!getAxisParameter(ctx, AXIS_Z, ACT_POS, &info.axisZ.position)) printf("getAxisParameter AXIS_Z error\n");
+		// if (!getAxisParameter(ctx, AXIS_Z, ACT_SPD, &info.axisZ.speed)) printf("getAxisParameter AXIS_Z error\n");
+
+        info.header.stamp = ros::Time::now();
+        pub_info->publish(info);
 
 		ts_now = ros::Time::now();
 
@@ -70,46 +87,19 @@ int main(int argc, char* argv[])
 #if 0
 	ros::param::get("~serial_port", serial_port);
 	ros::param::get("~baud_rate", baud_rate);
-	ros::param::get("~slave_num", slave_num);
 #else
 	nh.getParam("serial_port", serial_port);
 	nh.getParam("baud_rate", baud_rate);
-	nh.getParam("slave_num", slave_num);
 #endif
-
-enum class CommandCase {
-	NONE, HOME, POSITION, JOG
-};
-
-enum class FunctionCase {
-	INIT, SET, ACTION, IDLE
-};
 
 	CommandCase cmdCase = CommandCase::NONE;
 	FunctionCase funcCase = FunctionCase::IDLE;
 
-    int main_hz = 100;
-    queue<NARRAY> qarr;
-    boost::thread threadModbusLoop(modbusLoop, main_hz, &qarr, &isModbusLoopEnd);
-
-	const char* bit_read_subject[] = {
-		"POT", "NOT", "HOME", "STOP", "PCON", "GAIN2", "P_CL", "N_CL", "MODE", "RESERVED1",
-		"EMG", "A_RST", "SV_ON", "SPD1_LVSF1", "SPD2_LVSF2", "SPD3", "START", "PAUSE", "REGT", "HSTART", "ISEL0",
-		"ISEL1", "ISEL2", "ISEL3", "ISEL4", "ISEL5", "ABSRQ", "JSTART", "JDIR", "PCLEAR", "AOVR", "RESERVED2",
-		"BRAKE", "ALARM", "READY", "ZSPD", "INPOS1", "TLMT", "VLMT", "INSPD", "WARN", "TGON", "RESERVED1",
-		"RESERVED2", "RESERVED3", "RESERVED4", "RESERVED5", "RESERVED6", "ORG", "EOS", "IOUT0", "IOUT1", "IOUT2", "IOUT3",
-		"IOUT4", "IOUT5", "RESERVED7", "RESERVED8", "RESERVED9", "RESERVED10", "RESERVED11", "RESERVED12", "RESERVED13", "RESERVED14"
-	};
-
 	modbus_t* ctx;
-#define READ_REG_SIZE   0x10
-	uint16_t read_registers[READ_REG_SIZE] = {0, };
-#define WRITE_COIL_SIZE  0x20
-    uint8_t write_bits[WRITE_COIL_SIZE] = {0, };
 
 	ctx = modbus_new_rtu(serial_port.c_str(), baud_rate, 'N', 8, 1);
 
-	printf("%s %d %d\n", serial_port.c_str(), baud_rate, slave_num);
+	printf("%s %d\n", serial_port.c_str(), baud_rate);
 
 	// modbus_new_rtu return
 	// pointer : successful
@@ -145,6 +135,37 @@ enum class FunctionCase {
 
     ros::Publisher pub_info = nh.advertise<gantry_robot::Info>("gantry_robot_info", 100);
 
+    int main_hz = 100;
+    queue<NARRAY> qarr;
+    boost::thread threadModbusLoop(modbusLoop, main_hz, &qarr, &isModbusLoopEnd, &pub_info, ctx);
+
+	// Axis Reset
+	// if (!setAxisCommand(ctx, AXIS_X, AxisCommand::emg, OnOff::off)) printf("setAxisCommand AxisCommand::emg AXIS_X error\n");
+	// if (!setAxisCommand(ctx, AXIS_X, AxisCommand::sv_on, OnOff::on)) printf("setAxisCommand AxisCommand::sv_on AXIS_X error\n");
+
+	// if (!setAxisCommand(ctx, AXIS_Y, AxisCommand::emg, OnOff::off)) printf("setAxisCommand AxisCommand::emg AXIS_Y error\n");
+	// if (!setAxisCommand(ctx, AXIS_Y, AxisCommand::sv_on, OnOff::on)) printf("setAxisCommand AxisCommand::sv_on AXIS_Y error\n");
+
+	if (!setAxisCommand(ctx, AXIS_Z, AxisCommand::emg, OnOff::off)) printf("setAxisCommand AxisCommand::emg AXIS_Z error\n");
+	if (!setAxisCommand(ctx, AXIS_Z, AxisCommand::sv_on, OnOff::on)) printf("setAxisCommand AxisCommand::sv_on AXIS_Z error\n");
+
+	// Homing Parameter
+	// if (!setHomingParameters(ctx, AXIS_X, HOMING_SPEED_X, HOMING_OFFSET_X, HOMING_DONE_BEHAVIOUR_X)) printf("setHomingParameters AXIS_X error\n");
+
+	// if (!setHomingParameters(ctx, AXIS_Y, HOMING_SPEED_Y, HOMING_OFFSET_Y, HOMING_DONE_BEHAVIOUR_Y)) printf("setHomingParameters AXIS_Y error\n");
+
+	if (!setHomingParameters(ctx, AXIS_Z, HOMING_SPEED_Z, HOMING_OFFSET_Z, HOMING_DONE_BEHAVIOUR_Z)) printf("setHomingParameters AXIS_Z error\n");
+
+	// Homing    
+	// if (!setAxisCommand(ctx, AXIS_X, AxisCommand::hstart, OnOff::on)) printf("setAxisCommand AxisCommand::hstart AXIS_X error\n");
+	// if (!setAxisCommand(ctx, AXIS_X, AxisCommand::hstart, OnOff::off)) printf("setAxisCommand AxisCommand::hstart AXIS_X error\n");
+
+	// if (!setAxisCommand(ctx, AXIS_Y, AxisCommand::hstart, OnOff::on)) printf("setAxisCommand AxisCommand::hstart AXIS_Y error\n");
+	// if (!setAxisCommand(ctx, AXIS_Y, AxisCommand::hstart, OnOff::off)) printf("setAxisCommand AxisCommand::hstart AXIS_Y error\n");
+
+	if (!setAxisCommand(ctx, AXIS_Z, AxisCommand::hstart, OnOff::on)) printf("setAxisCommand AxisCommand::hstart AXIS_Z error\n");
+	if (!setAxisCommand(ctx, AXIS_Z, AxisCommand::hstart, OnOff::off)) printf("setAxisCommand AxisCommand::hstart AXIS_Z error\n");
+
 	ros::Rate r(1000);
 
 	#define STEP_TIME 1.0
@@ -152,188 +173,22 @@ enum class FunctionCase {
 	double time_pre = time_cur;
 	double time_diff;
 
-#define AXIS_X  11
-#define AXIS_Y  12
-#define AXIS_Z  13
-    // slave_num = AXIS_X;
-    // if (modbus_set_slave(ctx, slave_num) == -1) {
-    //     printf("Unable to set the slave ID in context: %s \n", modbus_strerror(errno));
-    // } else {
-	// 	// E-STOP Disable
-	// 	setAxisCommand(ctx, AxisCommand::emg, OnOff::off);
-	// 	// Servo On
-	// 	setAxisCommand(ctx, AxisCommand::sv_on, OnOff::on);
-	// }
-
-    // slave_num = AXIS_Y;
-    // if (modbus_set_slave(ctx, slave_num) == -1) {
-    //     printf("Unable to set the slave ID in context: %s \n", modbus_strerror(errno));
-    // } else {
-	// 	// E-STOP Disable
-	// 	setAxisCommand(ctx, AxisCommand::emg, OnOff::off);
-	// 	// Servo On
-	// 	setAxisCommand(ctx, AxisCommand::sv_on, OnOff::on);
-	// }
-
-    slave_num = AXIS_Z;
-    if (modbus_set_slave(ctx, slave_num) == -1) {
-        printf("Unable to set the slave ID in context: %s \n", modbus_strerror(errno));
-    } else {
-		// E-STOP Disable
-		setAxisCommand(ctx, AxisCommand::emg, OnOff::off);
-		// Servo On
-		setAxisCommand(ctx, AxisCommand::sv_on, OnOff::on);
-	}
-
-#define HOMING_SPEED_X  5000
-#define HOMING_SPEED_Y  5000
-#define HOMING_SPEED_Z  5000
-#define HOMING_OFFSET_X 131072
-#define HOMING_OFFSET_Y 5160
-#define HOMING_OFFSET_Z 8097
-#define HOMING_DONE_BEHAVIOUR_X OnOff::off
-#define HOMING_DONE_BEHAVIOUR_Y OnOff::on
-#define HOMING_DONE_BEHAVIOUR_Z OnOff::on
-    slave_num = AXIS_X;
-    if (modbus_set_slave(ctx, slave_num) == -1) {
-        printf("Unable to set the slave ID in context: %s \n", modbus_strerror(errno));
-    } else {
-    	setHomingParameters(ctx, HOMING_SPEED_X, HOMING_OFFSET_X, HOMING_DONE_BEHAVIOUR_X);
-	}
-    
-    slave_num = AXIS_Y;
-    if (modbus_set_slave(ctx, slave_num) == -1) {
-        printf("Unable to set the slave ID in context: %s \n", modbus_strerror(errno));
-    } else {
-    	setHomingParameters(ctx, HOMING_SPEED_X, HOMING_OFFSET_X, HOMING_DONE_BEHAVIOUR_X);
-	}
-    
-    slave_num = AXIS_Z;
-    if (modbus_set_slave(ctx, slave_num) == -1) {
-        printf("Unable to set the slave ID in context: %s \n", modbus_strerror(errno));
-    } else {
-    	setHomingParameters(ctx, HOMING_SPEED_X, HOMING_OFFSET_X, HOMING_DONE_BEHAVIOUR_X);
-	}
-
-	// Homing
-    // slave_num = AXIS_X;
-    // if (modbus_set_slave(ctx, slave_num) == -1) {
-    //     printf("Unable to set the slave ID in context: %s \n", modbus_strerror(errno));
-    // } else {
-	// 	setAxisCommand(ctx, AxisCommand::hstart, OnOff::on);
-	// 	// Homing Signal Disable
-	// 	setAxisCommand(ctx, AxisCommand::hstart, OnOff::off);
-	// }
-
-    // slave_num = AXIS_Y;
-    // if (modbus_set_slave(ctx, slave_num) == -1) {
-    //     printf("Unable to set the slave ID in context: %s \n", modbus_strerror(errno));
-    // } else {
-	// 	setAxisCommand(ctx, AxisCommand::hstart, OnOff::on);
-	// 	// Homing Signal Disable
-	// 	setAxisCommand(ctx, AxisCommand::hstart, OnOff::off);
-	// }
-
-    slave_num = AXIS_Z;
-    if (modbus_set_slave(ctx, slave_num) == -1) {
-        printf("Unable to set the slave ID in context: %s \n", modbus_strerror(errno));
-    } else {
-		setAxisCommand(ctx, AxisCommand::hstart, OnOff::on);
-		// Homing Signal Disable
-		setAxisCommand(ctx, AxisCommand::hstart, OnOff::off);
-	}
-    
-    gantry_robot::Info info;
+	int count = 0;
 
 	while (ros::ok())
 	{
-		// 현재 상태 읽기
-        slave_num = AXIS_X;
-        if (modbus_set_slave(ctx, slave_num) == -1) {
-            printf("Unable to set the slave ID in context: %s \n", modbus_strerror(errno));
-        } else {
-			if (getAxisStatus(ctx, &info.axisX.status)) {
-			} else {
-				printf("getAxisStatus error\n");
-			}
-			if (modbus_read_registers(ctx, ACT_POS, (int32_t)ObjType::DINT, read_registers)) {
-			} else {
-				printf("modbus_read_registers error\n");
-			}
-#if 0
-			if (modbus_read_registers(ctx, ACT_SPD, (int32_t)ObjType::DINT, read_registers+2)) {
-			} else {
-				printf("modbus_read_registers error\n");
-			}
-#endif
-		}
-
-        info.axisX.position = *((int32_t*)read_registers);
-        info.axisX.speed = *(((int32_t*)read_registers)+1);
-
-		// 현재 상태 읽기
-        slave_num = AXIS_Y;
-        if (modbus_set_slave(ctx, slave_num) == -1) {
-            printf("Unable to set the slave ID in context: %s \n", modbus_strerror(errno));
-        } else {
-			if (getAxisStatus(ctx, &info.axisY.status)) {
-			} else {
-				printf("getAxisStatus error\n");
-			}
-			if (modbus_read_registers(ctx, ACT_POS, (int32_t)ObjType::DINT, read_registers)) {
-			} else {
-				printf("modbus_read_registers error\n");
-			}
-#if 0
-			if (modbus_read_registers(ctx, ACT_SPD, (int32_t)ObjType::DINT, read_registers+2)) {
-			} else {
-				printf("modbus_read_registers error\n");
-			}
-#endif
-		}
-
-        info.axisY.position = *((int32_t*)read_registers);
-        info.axisY.speed = *(((int32_t*)read_registers)+1);
-        
-		// 현재 상태 읽기
-        slave_num = AXIS_Z;
-        if (modbus_set_slave(ctx, slave_num) == -1) {
-            printf("Unable to set the slave ID in context: %s \n", modbus_strerror(errno));
-        } else {
-			if (getAxisStatus(ctx, &info.axisZ.status)) {
-			} else {
-				printf("getAxisStatus error\n");
-			}
-			if (modbus_read_registers(ctx, ACT_POS, (int32_t)ObjType::DINT, read_registers)) {
-			} else {
-				printf("modbus_read_registers error\n");
-			}
-#if 0
-			if (modbus_read_registers(ctx, ACT_SPD, (int32_t)ObjType::DINT, read_registers+2)) {
-			} else {
-				printf("modbus_read_registers error\n");
-			}
-#endif
-		}
-
-        info.axisZ.position = *((int32_t*)read_registers);
-        info.axisZ.speed = *(((int32_t*)read_registers)+1);
-
-        info.header.stamp = ros::Time::now();
-        pub_info.publish(info);
-
 		time_cur = ros::Time::now().toSec();
 		time_diff = time_cur - time_pre;
 		if ( time_diff > STEP_TIME ) {
 			time_pre = time_cur;
 		}
 
-		if ((OnOff)info.axisZ.status.output.org == OnOff::on &&
-			(OnOff)info.axisZ.status.output.inpos1 == OnOff::on &&
-			info.axisZ.position == 0 ) {
-				printf("axis Z done.\n");
-			break;
-		}
+		// if ((OnOff)info.axisZ.status.output.org == OnOff::on &&
+		// 	(OnOff)info.axisZ.status.output.inpos1 == OnOff::on &&
+		// 	info.axisZ.position == 0 ) {
+		// 		printf("axis Z done.\n");
+		// 	break;
+		// }
 
 		switch (cmdCase) {
 			case CommandCase::NONE:
