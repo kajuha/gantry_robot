@@ -2,12 +2,12 @@
 <package format="2">
   <name>gantry_robot</name>
   <version>0.0.0</version>
-  <description>The gantry_robot package</description>
+  <description>gantry_robot</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
   <!-- Example:  -->
   <!-- <maintainer email="jane.doe@example.com">Jane Doe</maintainer> -->
-  <maintainer email="kajuha@todo.todo">kajuha</maintainer>
+  <maintainer email="kajuha@gmail.com">kajuha</maintainer>
 
 
   <!-- One license tag required, multiple allowed, one license per tag -->

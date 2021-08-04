@@ -1,7 +1,4 @@
 #include <ros/ros.h>
-#include <std_msgs/Float64.h>
-#include <sensor_msgs/Range.h>
-#include <sensor_msgs/BatteryState.h>
 
 #include <unistd.h>
 #include <pthread.h>
@@ -20,6 +17,8 @@
 #include "L7P.h"
 #include "ObjectDictionary.h"
 
+#include <gantry_robot/Info.h>
+
 using namespace std;
 
 #include <queue>
@@ -32,13 +31,13 @@ class NARRAY {
     int nArray4;
 };
 
-void modbusLoop(int rate, queue<NARRAY>* qarr) {
+void modbusLoop(int rate, queue<NARRAY>* qarr, int* isModbusLoopEnd) {
     int size;
 	ros::Time ts_now;
 
 	ros::Rate r(rate);
 
-	while (ros::ok())
+	while (ros::ok() && !(*isModbusLoopEnd))
 	{
         size = qarr->size();
 
@@ -64,6 +63,9 @@ int main(int argc, char* argv[])
 	std::string serial_port;
 	int baud_rate;
 	int slave_num;
+#define END	1
+#define NOT	0
+	int isModbusLoopEnd = NOT;
 
 #if 0
 	ros::param::get("~serial_port", serial_port);
@@ -75,34 +77,35 @@ int main(int argc, char* argv[])
 	nh.getParam("slave_num", slave_num);
 #endif
 
+enum class CommandCase {
+	NONE, HOME, POSITION, JOG
+};
+
+enum class FunctionCase {
+	INIT, SET, ACTION, IDLE
+};
+
+	CommandCase cmdCase = CommandCase::NONE;
+	FunctionCase funcCase = FunctionCase::IDLE;
+
     int main_hz = 100;
     queue<NARRAY> qarr;
-    boost::thread threadModbusLoop(modbusLoop, main_hz, &qarr);
+    boost::thread threadModbusLoop(modbusLoop, main_hz, &qarr, &isModbusLoopEnd);
 
 	const char* bit_read_subject[] = {
-		"POT", "NOT", "HOME", "STOP", "PCON", "GAIN2", "P_CL", "N_CL", "MODE", "RESERVED",
-		"EMG", "A_RST", "SV_ON", "SPD1/LVSF1", "SPD2/LVSF2", "SPD3", "START", "PAUSE", "REGT", "HSTART", "ISEL0",
-		"ISEL1", "ISEL2", "ISEL3", "ISEL4", "ISEL5", "ABSRQ", "JSTART", "JDIR", "PCLEAR", "AOVR", "RESERVED",
-		"BRAKE", "ALARM", "READY", "ZSPD", "INPOS1", "TLMT", "VLMT", "INSPD", "WARN", "TGON", "RESERVED",
-		"RESERVED", "RESERVED", "RESERVED", "RESERVED", "RESERVED", "ORG", "EOS", "IOUT0", "IOUT1", "IOUT2", "IOUT3",
-		"IOUT4", "IOUT5", "RESERVED", "RESERVED", "RESERVED", "RESERVED", "RESERVED", "RESERVED", "RESERVED", "RESERVED"
-	};
-
-	const char* bit_write_subject[] = {
-		"POT", "NOT", "HOME", "STOP", "PCON", "GAIN2", "P_CL", "N_CL", "MODE", "RESERVED",
-		"EMG", "A_RST", "SV_ON", "SPD1/LVSF1", "SPD2/LVSF2", "SPD3", "START", "PAUSE", "REGT", "HSTART",
-		"ISEL0", "ISEL1", "ISEL2", "ISEL3", "ISEL4", "ISEL5", "ABSRQ", "JSTART", "JDIR", "PCLEAR",
-		"AOVR", "RESERVED"
+		"POT", "NOT", "HOME", "STOP", "PCON", "GAIN2", "P_CL", "N_CL", "MODE", "RESERVED1",
+		"EMG", "A_RST", "SV_ON", "SPD1_LVSF1", "SPD2_LVSF2", "SPD3", "START", "PAUSE", "REGT", "HSTART", "ISEL0",
+		"ISEL1", "ISEL2", "ISEL3", "ISEL4", "ISEL5", "ABSRQ", "JSTART", "JDIR", "PCLEAR", "AOVR", "RESERVED2",
+		"BRAKE", "ALARM", "READY", "ZSPD", "INPOS1", "TLMT", "VLMT", "INSPD", "WARN", "TGON", "RESERVED1",
+		"RESERVED2", "RESERVED3", "RESERVED4", "RESERVED5", "RESERVED6", "ORG", "EOS", "IOUT0", "IOUT1", "IOUT2", "IOUT3",
+		"IOUT4", "IOUT5", "RESERVED7", "RESERVED8", "RESERVED9", "RESERVED10", "RESERVED11", "RESERVED12", "RESERVED13", "RESERVED14"
 	};
 
 	modbus_t* ctx;
-    uint8_t read_bits[READ_COIL_SIZE] = {0, };
 #define READ_REG_SIZE   0x10
 	uint16_t read_registers[READ_REG_SIZE] = {0, };
 #define WRITE_COIL_SIZE  0x20
     uint8_t write_bits[WRITE_COIL_SIZE] = {0, };
-
-	sensor_msgs::BatteryState batteryState;
 
 	ctx = modbus_new_rtu(serial_port.c_str(), baud_rate, 'N', 8, 1);
 
@@ -140,6 +143,8 @@ int main(int argc, char* argv[])
 		return -1;
 	}
 
+    ros::Publisher pub_info = nh.advertise<gantry_robot::Info>("gantry_robot_info", 100);
+
 	ros::Rate r(1000);
 
 	#define STEP_TIME 1.0
@@ -147,142 +152,175 @@ int main(int argc, char* argv[])
 	double time_pre = time_cur;
 	double time_diff;
 
-	if (modbus_read_bits(ctx, 0, READ_COIL_SIZE, read_bits)) {
-	} else {
-		printf("modbus_read_bits error\n");
+#define AXIS_X  11
+#define AXIS_Y  12
+#define AXIS_Z  13
+    // slave_num = AXIS_X;
+    // if (modbus_set_slave(ctx, slave_num) == -1) {
+    //     printf("Unable to set the slave ID in context: %s \n", modbus_strerror(errno));
+    // } else {
+	// 	// E-STOP Disable
+	// 	setAxisCommand(ctx, AxisCommand::emg, OnOff::off);
+	// 	// Servo On
+	// 	setAxisCommand(ctx, AxisCommand::sv_on, OnOff::on);
+	// }
+
+    // slave_num = AXIS_Y;
+    // if (modbus_set_slave(ctx, slave_num) == -1) {
+    //     printf("Unable to set the slave ID in context: %s \n", modbus_strerror(errno));
+    // } else {
+	// 	// E-STOP Disable
+	// 	setAxisCommand(ctx, AxisCommand::emg, OnOff::off);
+	// 	// Servo On
+	// 	setAxisCommand(ctx, AxisCommand::sv_on, OnOff::on);
+	// }
+
+    slave_num = AXIS_Z;
+    if (modbus_set_slave(ctx, slave_num) == -1) {
+        printf("Unable to set the slave ID in context: %s \n", modbus_strerror(errno));
+    } else {
+		// E-STOP Disable
+		setAxisCommand(ctx, AxisCommand::emg, OnOff::off);
+		// Servo On
+		setAxisCommand(ctx, AxisCommand::sv_on, OnOff::on);
 	}
 
-	// LS 메카피온 L7P에서는 2개의 차이가 없음 어느 것으로 읽어도 상관없을 것 같음, kajuha
-	printf("read : \n");
-	for (int i=0; i<READ_COIL_SIZE; i++) {
-		if(strcmp(bit_read_subject[i], "RESERVED")) {
-			printf("[%s, 0x%02x] : %x\n", bit_read_subject[i], i, read_bits[i]);
-		}
+#define HOMING_SPEED_X  5000
+#define HOMING_SPEED_Y  5000
+#define HOMING_SPEED_Z  5000
+#define HOMING_OFFSET_X 131072
+#define HOMING_OFFSET_Y 5160
+#define HOMING_OFFSET_Z 8097
+#define HOMING_DONE_BEHAVIOUR_X OnOff::off
+#define HOMING_DONE_BEHAVIOUR_Y OnOff::on
+#define HOMING_DONE_BEHAVIOUR_Z OnOff::on
+    slave_num = AXIS_X;
+    if (modbus_set_slave(ctx, slave_num) == -1) {
+        printf("Unable to set the slave ID in context: %s \n", modbus_strerror(errno));
+    } else {
+    	setHomingParameters(ctx, HOMING_SPEED_X, HOMING_OFFSET_X, HOMING_DONE_BEHAVIOUR_X);
 	}
-
-	// E-STOP Disable
-	setSingleCoilCmd(ctx, SingleCoilCmd::emg, OnOff::off);
-	// Servo On
-	setSingleCoilCmd(ctx, SingleCoilCmd::sv_on, OnOff::on);
-	// Homing Parameter Set
-#define DATA_SIZE	2
-	int addr;
-	int nb;
-	uint16_t write_data[DATA_SIZE] = {0, };
-	uint16_t read_data[DATA_SIZE] = {0, };
-	
-	addr = 0x603E;
-	nb = 1;
-	write_data[0] = 24;
-	// if (modbus_write_and_read_registers(ctx, addr, nb, write_data, addr, nb, read_data)) {
-	if (modbus_write_registers(ctx, addr, nb, write_data)) {
-		printf("0x%04x: write:%10d, read:%10d\n", addr, write_data[0], read_data[0]);
-	} else {
-		printf("0x%04x: error\n", addr);
+    
+    slave_num = AXIS_Y;
+    if (modbus_set_slave(ctx, slave_num) == -1) {
+        printf("Unable to set the slave ID in context: %s \n", modbus_strerror(errno));
+    } else {
+    	setHomingParameters(ctx, HOMING_SPEED_X, HOMING_OFFSET_X, HOMING_DONE_BEHAVIOUR_X);
 	}
-	
-	addr = 0x6041;
-	nb = 2;
-	*((int*)write_data) = 5000;
-	// if (modbus_write_and_read_registers(ctx, addr, nb, write_data, addr, nb, read_data)) {
-	if (modbus_write_registers(ctx, addr, nb, write_data)) {
-		printf("0x%04x: write:%10d, read:%10d\n", addr, *((int*)write_data), *((int*)read_data));
-	} else {
-		printf("0x%04x: error\n", addr);
+    
+    slave_num = AXIS_Z;
+    if (modbus_set_slave(ctx, slave_num) == -1) {
+        printf("Unable to set the slave ID in context: %s \n", modbus_strerror(errno));
+    } else {
+    	setHomingParameters(ctx, HOMING_SPEED_X, HOMING_OFFSET_X, HOMING_DONE_BEHAVIOUR_X);
 	}
-	
-	addr = 0x6043;
-	nb = 2;
-	*((int*)write_data) = 5000;
-	// if (modbus_write_and_read_registers(ctx, addr, nb, write_data, addr, nb, read_data)) {
-	if (modbus_write_registers(ctx, addr, nb, write_data)) {
-		printf("0x%04x: write:%10d, read:%10d\n", addr, *((int*)write_data), *((int*)read_data));
-	} else {
-		printf("0x%04x: error\n", addr);
-	}
-	
-	addr = 0x6045;
-	nb = 2;
-	*((int*)write_data) = 10000;
-	// if (modbus_write_and_read_registers(ctx, addr, nb, write_data, addr, nb, read_data)) {
-	if (modbus_write_registers(ctx, addr, nb, write_data)) {
-		printf("0x%04x: write:%10d, read:%10d\n", addr, *((int*)write_data), *((int*)read_data));
-	} else {
-		printf("0x%04x: error\n", addr);
-	}
-	
-	addr = 0x6024;
-	nb = 2;
-	*((int*)write_data) = 8097;
-	// if (modbus_write_and_read_registers(ctx, addr, nb, write_data, addr, nb, read_data)) {
-	if (modbus_write_registers(ctx, addr, nb, write_data)) {
-		printf("0x%04x: write:%10d, read:%10d\n", addr, *((int*)write_data), *((int*)read_data));
-	} else {
-		printf("0x%04x: error\n", addr);
-	}
-	
-	addr = 0x6034;
-	nb = 2;
-	*((int*)write_data) = 10000;
-	// if (modbus_write_and_read_registers(ctx, addr, nb, write_data, addr, nb, read_data)) {
-	if (modbus_write_registers(ctx, addr, nb, write_data)) {
-		printf("0x%04x: write:%10d, read:%10d\n", addr, *((int*)write_data), *((int*)read_data));
-	} else {
-		printf("0x%04x: error\n", addr);
-	}
-	
-	addr = 0x201F;
-	nb = 1;
-	write_data[0] = 1;
-	// if (modbus_write_and_read_registers(ctx, addr, nb, write_data, addr, nb, read_data)) {
-	if (modbus_write_registers(ctx, addr, nb, write_data)) {
-		printf("0x%04x: write:%10d, read:%10d\n", addr, write_data[0], read_data[0]);
-	} else {
-		printf("0x%04x: error\n", addr);
-	}
-	
 
 	// Homing
-	setSingleCoilCmd(ctx, SingleCoilCmd::hstart, OnOff::on);
-	// Homing Signal Disable
-	setSingleCoilCmd(ctx, SingleCoilCmd::hstart, OnOff::off);
+    // slave_num = AXIS_X;
+    // if (modbus_set_slave(ctx, slave_num) == -1) {
+    //     printf("Unable to set the slave ID in context: %s \n", modbus_strerror(errno));
+    // } else {
+	// 	setAxisCommand(ctx, AxisCommand::hstart, OnOff::on);
+	// 	// Homing Signal Disable
+	// 	setAxisCommand(ctx, AxisCommand::hstart, OnOff::off);
+	// }
 
-	if (modbus_read_bits(ctx, 0, READ_COIL_SIZE, read_bits)) {
-	} else {
-		printf("modbus_read_bits error\n");
-	}
+    // slave_num = AXIS_Y;
+    // if (modbus_set_slave(ctx, slave_num) == -1) {
+    //     printf("Unable to set the slave ID in context: %s \n", modbus_strerror(errno));
+    // } else {
+	// 	setAxisCommand(ctx, AxisCommand::hstart, OnOff::on);
+	// 	// Homing Signal Disable
+	// 	setAxisCommand(ctx, AxisCommand::hstart, OnOff::off);
+	// }
 
-	// LS 메카피온 L7P에서는 2개의 차이가 없음 어느 것으로 읽어도 상관없을 것 같음, kajuha
-	printf("read : \n");
-	for (int i=0; i<READ_COIL_SIZE; i++) {
-		if(strcmp(bit_read_subject[i], "RESERVED")) {
-			printf("[%s] : %x\n", bit_read_subject[i], read_bits[i]);
-		}
+    slave_num = AXIS_Z;
+    if (modbus_set_slave(ctx, slave_num) == -1) {
+        printf("Unable to set the slave ID in context: %s \n", modbus_strerror(errno));
+    } else {
+		setAxisCommand(ctx, AxisCommand::hstart, OnOff::on);
+		// Homing Signal Disable
+		setAxisCommand(ctx, AxisCommand::hstart, OnOff::off);
 	}
+    
+    gantry_robot::Info info;
 
 	while (ros::ok())
 	{
-		// modbus_read_input_registers return
-		// the number of read input registers
-		// -1 : error, set errno
-		if (modbus_read_bits(ctx, 0, READ_COIL_SIZE, read_bits)) {
-		} else {
-			printf("modbus_read_bits error\n");
+		// 현재 상태 읽기
+        slave_num = AXIS_X;
+        if (modbus_set_slave(ctx, slave_num) == -1) {
+            printf("Unable to set the slave ID in context: %s \n", modbus_strerror(errno));
+        } else {
+			if (getAxisStatus(ctx, &info.axisX.status)) {
+			} else {
+				printf("getAxisStatus error\n");
+			}
+			if (modbus_read_registers(ctx, ACT_POS, (int32_t)ObjType::DINT, read_registers)) {
+			} else {
+				printf("modbus_read_registers error\n");
+			}
+#if 0
+			if (modbus_read_registers(ctx, ACT_SPD, (int32_t)ObjType::DINT, read_registers+2)) {
+			} else {
+				printf("modbus_read_registers error\n");
+			}
+#endif
 		}
-#define ACT_POS 0x600E
-#define DINT    2
-		if (modbus_read_registers(ctx, ACT_POS, DINT, read_registers)) {
-		} else {
-			printf("modbus_read_registers error\n");
+
+        info.axisX.position = *((int32_t*)read_registers);
+        info.axisX.speed = *(((int32_t*)read_registers)+1);
+
+		// 현재 상태 읽기
+        slave_num = AXIS_Y;
+        if (modbus_set_slave(ctx, slave_num) == -1) {
+            printf("Unable to set the slave ID in context: %s \n", modbus_strerror(errno));
+        } else {
+			if (getAxisStatus(ctx, &info.axisY.status)) {
+			} else {
+				printf("getAxisStatus error\n");
+			}
+			if (modbus_read_registers(ctx, ACT_POS, (int32_t)ObjType::DINT, read_registers)) {
+			} else {
+				printf("modbus_read_registers error\n");
+			}
+#if 0
+			if (modbus_read_registers(ctx, ACT_SPD, (int32_t)ObjType::DINT, read_registers+2)) {
+			} else {
+				printf("modbus_read_registers error\n");
+			}
+#endif
 		}
-#define ACT_SPD 0x6018
-#define DINT    2
-		if (modbus_read_registers(ctx, ACT_SPD, DINT, read_registers+2)) {
-		} else {
-			printf("modbus_read_registers error\n");
-		}
+
+        info.axisY.position = *((int32_t*)read_registers);
+        info.axisY.speed = *(((int32_t*)read_registers)+1);
         
-		printf("inpos: %2d, org: %2d, pos: %+5d, spd: %+5d \n", read_bits[0x24], read_bits[0x30], *((int32_t*)read_registers), *(((int32_t*)read_registers)+1));
+		// 현재 상태 읽기
+        slave_num = AXIS_Z;
+        if (modbus_set_slave(ctx, slave_num) == -1) {
+            printf("Unable to set the slave ID in context: %s \n", modbus_strerror(errno));
+        } else {
+			if (getAxisStatus(ctx, &info.axisZ.status)) {
+			} else {
+				printf("getAxisStatus error\n");
+			}
+			if (modbus_read_registers(ctx, ACT_POS, (int32_t)ObjType::DINT, read_registers)) {
+			} else {
+				printf("modbus_read_registers error\n");
+			}
+#if 0
+			if (modbus_read_registers(ctx, ACT_SPD, (int32_t)ObjType::DINT, read_registers+2)) {
+			} else {
+				printf("modbus_read_registers error\n");
+			}
+#endif
+		}
+
+        info.axisZ.position = *((int32_t*)read_registers);
+        info.axisZ.speed = *(((int32_t*)read_registers)+1);
+
+        info.header.stamp = ros::Time::now();
+        pub_info.publish(info);
 
 		time_cur = ros::Time::now().toSec();
 		time_diff = time_cur - time_pre;
@@ -290,17 +328,96 @@ int main(int argc, char* argv[])
 			time_pre = time_cur;
 		}
 
+		if ((OnOff)info.axisZ.status.output.org == OnOff::on &&
+			(OnOff)info.axisZ.status.output.inpos1 == OnOff::on &&
+			info.axisZ.position == 0 ) {
+				printf("axis Z done.\n");
+			break;
+		}
+
+		switch (cmdCase) {
+			case CommandCase::NONE:
+				switch (funcCase) {
+					case FunctionCase::INIT:
+						funcCase = FunctionCase::SET;
+					break;
+					case FunctionCase::SET:
+						funcCase = FunctionCase::ACTION;
+					break;
+					case FunctionCase::ACTION:
+						funcCase = FunctionCase::IDLE;
+					break;
+					case FunctionCase::IDLE:
+						funcCase = FunctionCase::IDLE;
+					break;
+				}
+			break;
+			case CommandCase::HOME:
+				switch (funcCase) {
+					case FunctionCase::INIT:
+						funcCase = FunctionCase::SET;
+					break;
+					case FunctionCase::SET:
+						funcCase = FunctionCase::ACTION;
+					break;
+					case FunctionCase::ACTION:
+						funcCase = FunctionCase::IDLE;
+					break;
+					case FunctionCase::IDLE:
+						funcCase = FunctionCase::IDLE;
+					break;
+				}
+			break;
+			case CommandCase::POSITION:
+				switch (funcCase) {
+					case FunctionCase::INIT:
+						funcCase = FunctionCase::SET;
+					break;
+					case FunctionCase::SET:
+						funcCase = FunctionCase::ACTION;
+					break;
+					case FunctionCase::ACTION:
+						funcCase = FunctionCase::IDLE;
+					break;
+					case FunctionCase::IDLE:
+						funcCase = FunctionCase::IDLE;
+					break;
+				}
+			break;
+			case CommandCase::JOG:
+				switch (funcCase) {
+					case FunctionCase::INIT:
+						funcCase = FunctionCase::SET;
+					break;
+					case FunctionCase::SET:
+						funcCase = FunctionCase::ACTION;
+					break;
+					case FunctionCase::ACTION:
+						funcCase = FunctionCase::IDLE;
+					break;
+					case FunctionCase::IDLE:
+						funcCase = FunctionCase::IDLE;
+					break;
+				}
+			break;
+		}
+
 		ros::spinOnce();
 
 		r.sleep();
 	}
 
+	isModbusLoopEnd = END;
     threadModbusLoop.join();
+
+	printf("threadModbusLoop joined.\n");
 
 	// modbus_close no return
 	modbus_close(ctx);
 	// modbus_free no return
 	modbus_free(ctx);
+
+	printf("program end.\n");
 
 	return 0;
 }
