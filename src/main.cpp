@@ -19,49 +19,59 @@
 
 #include <gantry_robot/Info.h>
 
-using namespace std;
-
-#include <queue>
-
-class NARRAY {
-    int nArray0;
-    int nArray1;
-    int nArray2;
-    int nArray3;
-    int nArray4;
-};
-
 gantry_robot::Info info;
 
-void modbusLoop(int rate, queue<NARRAY>* qarr, int* isModbusLoopEnd, ros::Publisher* pub_info, modbus_t* ctx) {
+void modbusLoop(int rate, std::queue<AxisMsg>* que, int* isModbusLoopEnd, ros::Publisher* pub_info, modbus_t* ctx) {
     int size;
 	ros::Time ts_now;
+	AxisMsg axisMsg;
 
 	ros::Rate r(rate);
 
 	while (ros::ok() && !(*isModbusLoopEnd))
 	{
-        size = qarr->size();
+        size = que->size();
 
         if (size) {
-			// 첫 번째 데이터 확인
-			qarr->front();
-			// 첫 번째 데이터 제거
-			qarr->pop();
+			axisMsg = que->front();
+			switch(axisMsg.type) {
+				case CommandType::setCommand:
+					if (!setAxisCommand(ctx, axisMsg.id, axisMsg.axisCommand, axisMsg.onOff)) {
+						printf("setAxisCommand error\n");
+					} else {
+						que->pop();
+					}
+				break;
+				case CommandType::getStatus:
+				break;
+				case CommandType::setParameter:
+				break;
+				case CommandType::getParameter:
+				break;
+				case CommandType::setHomingParameters:
+					if (!setHomingParameters(ctx, axisMsg.id, axisMsg.speed, axisMsg.offset, axisMsg.done_behaviour)) {
+						printf("setHomingParameters error\n");
+					} else {
+						que->pop();
+					}
+				break;
+				default:
+				break;
+			}
 		} else {
 		}
 
-		// if (!getAxisStatus(ctx, AXIS_X, &info.axisX.status)) printf("getAxisStatus AXIS_X error\n");		
-		// if (!getAxisParameter(ctx, AXIS_X, ACT_POS, &info.axisX.position)) printf("getAxisParameter AXIS_X error\n");
-		// if (!getAxisParameter(ctx, AXIS_X, ACT_SPD, &info.axisX.speed)) printf("getAxisParameter AXIS_X error\n");
+		if (!getAxisStatus(ctx, AXIS_X, &info.axisX.status)) printf("getAxisStatus AXIS_X error\n");		
+		if (!getAxisParameter(ctx, AXIS_X, ACT_POS, &info.axisX.position)) printf("getAxisParameter AXIS_X error\n");
+		if (!getAxisParameter(ctx, AXIS_X, ACT_SPD, &info.axisX.speed)) printf("getAxisParameter AXIS_X error\n");
 
-		// if (!getAxisStatus(ctx, AXIS_Y, &info.axisY.status)) printf("getAxisStatus AXIS_Y error\n");		
-		// if (!getAxisParameter(ctx, AXIS_Y, ACT_POS, &info.axisY.position)) printf("getAxisParameter AXIS_Y error\n");
-		// if (!getAxisParameter(ctx, AXIS_Y, ACT_SPD, &info.axisY.speed)) printf("getAxisParameter AXIS_Y error\n");
+		if (!getAxisStatus(ctx, AXIS_Y, &info.axisY.status)) printf("getAxisStatus AXIS_Y error\n");		
+		if (!getAxisParameter(ctx, AXIS_Y, ACT_POS, &info.axisY.position)) printf("getAxisParameter AXIS_Y error\n");
+		if (!getAxisParameter(ctx, AXIS_Y, ACT_SPD, &info.axisY.speed)) printf("getAxisParameter AXIS_Y error\n");
 
-		// if (!getAxisStatus(ctx, AXIS_Z, &info.axisZ.status)) printf("getAxisStatus AXIS_Z error\n");		
-		// if (!getAxisParameter(ctx, AXIS_Z, ACT_POS, &info.axisZ.position)) printf("getAxisParameter AXIS_Z error\n");
-		// if (!getAxisParameter(ctx, AXIS_Z, ACT_SPD, &info.axisZ.speed)) printf("getAxisParameter AXIS_Z error\n");
+		if (!getAxisStatus(ctx, AXIS_Z, &info.axisZ.status)) printf("getAxisStatus AXIS_Z error\n");		
+		if (!getAxisParameter(ctx, AXIS_Z, ACT_POS, &info.axisZ.position)) printf("getAxisParameter AXIS_Z error\n");
+		if (!getAxisParameter(ctx, AXIS_Z, ACT_SPD, &info.axisZ.speed)) printf("getAxisParameter AXIS_Z error\n");
 
         info.header.stamp = ros::Time::now();
         pub_info->publish(info);
@@ -136,35 +146,46 @@ int main(int argc, char* argv[])
     ros::Publisher pub_info = nh.advertise<gantry_robot::Info>("gantry_robot_info", 100);
 
     int main_hz = 100;
-    queue<NARRAY> qarr;
-    boost::thread threadModbusLoop(modbusLoop, main_hz, &qarr, &isModbusLoopEnd, &pub_info, ctx);
+    std::queue<AxisMsg> que;
+	AxisMsg axisMsg;
+    boost::thread threadModbusLoop(modbusLoop, main_hz, &que, &isModbusLoopEnd, &pub_info, ctx);
 
 	// Axis Reset
-	// if (!setAxisCommand(ctx, AXIS_X, AxisCommand::emg, OnOff::off)) printf("setAxisCommand AxisCommand::emg AXIS_X error\n");
-	// if (!setAxisCommand(ctx, AXIS_X, AxisCommand::sv_on, OnOff::on)) printf("setAxisCommand AxisCommand::sv_on AXIS_X error\n");
-
-	// if (!setAxisCommand(ctx, AXIS_Y, AxisCommand::emg, OnOff::off)) printf("setAxisCommand AxisCommand::emg AXIS_Y error\n");
-	// if (!setAxisCommand(ctx, AXIS_Y, AxisCommand::sv_on, OnOff::on)) printf("setAxisCommand AxisCommand::sv_on AXIS_Y error\n");
-
-	if (!setAxisCommand(ctx, AXIS_Z, AxisCommand::emg, OnOff::off)) printf("setAxisCommand AxisCommand::emg AXIS_Z error\n");
-	if (!setAxisCommand(ctx, AXIS_Z, AxisCommand::sv_on, OnOff::on)) printf("setAxisCommand AxisCommand::sv_on AXIS_Z error\n");
+	axisMsg.id = AXIS_Z;
+	axisMsg.type = CommandType::setCommand;
+	axisMsg.axisCommand = AxisCommand::emg;
+	axisMsg.onOff = OnOff::off;
+	que.push(axisMsg);
+	// if (!setAxisCommand(ctx, AXIS_Z, AxisCommand::emg, OnOff::off)) printf("setAxisCommand AxisCommand::emg AXIS_Z error\n");
+	axisMsg.id = AXIS_Z;
+	axisMsg.type = CommandType::setCommand;
+	axisMsg.axisCommand = AxisCommand::sv_on;
+	axisMsg.onOff = OnOff::on;
+	que.push(axisMsg);
+	// if (!setAxisCommand(ctx, AXIS_Z, AxisCommand::sv_on, OnOff::on)) printf("setAxisCommand AxisCommand::sv_on AXIS_Z error\n");
 
 	// Homing Parameter
-	// if (!setHomingParameters(ctx, AXIS_X, HOMING_SPEED_X, HOMING_OFFSET_X, HOMING_DONE_BEHAVIOUR_X)) printf("setHomingParameters AXIS_X error\n");
+	axisMsg.id = AXIS_Z;
+	axisMsg.type = CommandType::setHomingParameters;
+	axisMsg.speed = HOMING_SPEED_Z;
+	axisMsg.offset = HOMING_OFFSET_Z;
+	axisMsg.done_behaviour = HOMING_DONE_BEHAVIOUR_Z;
+	que.push(axisMsg);
+	// if (!setHomingParameters(ctx, AXIS_Z, HOMING_SPEED_Z, HOMING_OFFSET_Z, HOMING_DONE_BEHAVIOUR_Z)) printf("setHomingParameters AXIS_Z error\n");
 
-	// if (!setHomingParameters(ctx, AXIS_Y, HOMING_SPEED_Y, HOMING_OFFSET_Y, HOMING_DONE_BEHAVIOUR_Y)) printf("setHomingParameters AXIS_Y error\n");
-
-	if (!setHomingParameters(ctx, AXIS_Z, HOMING_SPEED_Z, HOMING_OFFSET_Z, HOMING_DONE_BEHAVIOUR_Z)) printf("setHomingParameters AXIS_Z error\n");
-
-	// Homing    
-	// if (!setAxisCommand(ctx, AXIS_X, AxisCommand::hstart, OnOff::on)) printf("setAxisCommand AxisCommand::hstart AXIS_X error\n");
-	// if (!setAxisCommand(ctx, AXIS_X, AxisCommand::hstart, OnOff::off)) printf("setAxisCommand AxisCommand::hstart AXIS_X error\n");
-
-	// if (!setAxisCommand(ctx, AXIS_Y, AxisCommand::hstart, OnOff::on)) printf("setAxisCommand AxisCommand::hstart AXIS_Y error\n");
-	// if (!setAxisCommand(ctx, AXIS_Y, AxisCommand::hstart, OnOff::off)) printf("setAxisCommand AxisCommand::hstart AXIS_Y error\n");
-
-	if (!setAxisCommand(ctx, AXIS_Z, AxisCommand::hstart, OnOff::on)) printf("setAxisCommand AxisCommand::hstart AXIS_Z error\n");
-	if (!setAxisCommand(ctx, AXIS_Z, AxisCommand::hstart, OnOff::off)) printf("setAxisCommand AxisCommand::hstart AXIS_Z error\n");
+	// Homing
+	axisMsg.id = AXIS_Z;
+	axisMsg.type = CommandType::setCommand;
+	axisMsg.axisCommand = AxisCommand::hstart;
+	axisMsg.onOff = OnOff::on;
+	que.push(axisMsg);
+	// if (!setAxisCommand(ctx, AXIS_Z, AxisCommand::hstart, OnOff::on)) printf("setAxisCommand AxisCommand::hstart AXIS_Z error\n");
+	axisMsg.id = AXIS_Z;
+	axisMsg.type = CommandType::setCommand;
+	axisMsg.axisCommand = AxisCommand::hstart;
+	axisMsg.onOff = OnOff::off;
+	que.push(axisMsg);
+	// if (!setAxisCommand(ctx, AXIS_Z, AxisCommand::hstart, OnOff::off)) printf("setAxisCommand AxisCommand::hstart AXIS_Z error\n");
 
 	ros::Rate r(1000);
 

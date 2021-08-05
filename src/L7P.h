@@ -3,6 +3,7 @@
 #include <gantry_robot/Status.h>
 
 #include <modbus.h>
+#include <queue>
 
 #define AXIS_X  11
 #define AXIS_Y  12
@@ -43,19 +44,24 @@ enum class AxisCommand {
     jstart = 0x1B, jdir = 0x1C
 };
 
-enum class ModbusCmd {
-    ReadCoils, WriteSingleCoil, WriteMultiCoils,
-    ReadHoldRegs, WriteSingleReg, WriteMultiRegs
+enum class CommandType {
+    setCommand, getStatus,
+    setParameter, getParameter,
+    setHomingParameters
 };
 
-class ModbusMsg {
-    uint8_t unitId;
-    ModbusCmd cmd;
-    uint16_t address;
-    uint16_t quantity;
-    uint16_t* values;
+struct AxisMsg {
+    uint8_t id;
+    CommandType type;
+    AxisCommand axisCommand;
+    OnOff onOff;
+    gantry_robot::Status* status;
+    int32_t speed;
+    int32_t offset;
+    OnOff done_behaviour;
 };
 
+void setAxisCommandMsg(std::queue<AxisMsg>* que, uint8_t id, AxisCommand axisCommand, OnOff onOff);
 int32_t setAxisCommand(modbus_t* ctx, int32_t id, AxisCommand axisCommand, OnOff onOff);
 int32_t getAxisStatus(modbus_t* ctx, int32_t id, gantry_robot::Status* status);
 

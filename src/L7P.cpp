@@ -1,11 +1,24 @@
 #include <modbus.h>
 #include <string.h>
 #include <stdio.h>
+#include <queue>
 
 #include <gantry_robot/Status.h>
 
 #include "L7P.h"
 #include "ObjectDictionary.h"
+
+void setAxisCommandMsg(std::queue<AxisMsg>* que, uint8_t id, AxisCommand axisCommand, OnOff onOff) {
+    static AxisMsg axisMsg;
+
+	axisMsg.type = CommandType::setCommand;
+
+	axisMsg.id = id;
+	axisMsg.axisCommand = AxisCommand::emg;
+	axisMsg.onOff = OnOff::off;
+
+	que->push(axisMsg);
+}
 
 int32_t setAxisCommand(modbus_t* ctx, int32_t id, AxisCommand axisCommand, OnOff onOff) {
     static int32_t ret = 0;
