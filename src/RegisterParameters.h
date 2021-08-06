@@ -16,7 +16,7 @@ struct RegisterParameter {
     const char* unit;
 };
 
-#define REGISTER_NUMBER 39
+#define REGISTER_NUMBER 316
 const RegisterParameter registerParameters[] = {
     {0x1000, ObjAccess::RO, ObjType::UDINT, "Device Type", "", "0x00020192", "-", "-", "-"},
     {0x1002, ObjAccess::RO, ObjType::USINT, "Error Register", "", "0x00", "-", "-", "-"},

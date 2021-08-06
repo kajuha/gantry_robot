@@ -9,6 +9,24 @@
 #define AXIS_Y  12
 #define AXIS_Z  13
 
+// GENERAL INFO
+#define ENCODER_PPR_AXIS_X          524288
+#define ENCODER_PPR_AXIS_Y          524288
+#define ENCODER_PPR_AXIS_Z          262144
+#define STAGE_MAX_AXIS_X            500
+#define STAGE_MAX_AXIS_Y            500
+#define STAGE_MAX_AXIS_Z            500
+#define STAGE_LEAD_AXIS_X           24
+#define STAGE_LEAD_AXIS_Y           25
+#define STAGE_LEAD_AXIS_Z           20
+#define RATIO_GEAR_AXIS_X           64      // 이미 모터드라이버에 적용되어 있음
+#define RATIO_GEAR_AXIS_Y           64      // 이미 모터드라이버에 적용되어 있음
+#define RATIO_GEAR_AXIS_Z           64      // 이미 모터드라이버에 적용되어 있음
+#define RATIO_SHAFT_AXIS_X          64      // 이미 모터드라이버에 적용되어 있음
+#define RATIO_SHAFT_AXIS_Y          64      // 이미 모터드라이버에 적용되어 있음
+#define RATIO_SHAFT_AXIS_Z          64      // 이미 모터드라이버에 적용되어 있음
+
+
 // GENERAL DEFAULT
 #define Q_STOP_DECELERATION_ADDR    0x6034
 #define Q_STOP_DECELERATION_VAL     10000
@@ -100,7 +118,10 @@ struct AxisMsg {
     AxisCommand axisCommand;
     OnOff onOff;
     gantry_robot::Status* status;
+    int32_t position;
     int32_t speed;
+    int32_t acc;
+    int32_t dec;
     int32_t offset;
     OnOff done_behaviour;
 };
@@ -112,5 +133,7 @@ int32_t getAxisStatus(modbus_t* ctx, int32_t id, gantry_robot::Status* status);
 void setHomingParametersMsg(std::queue<AxisMsg>* que, int32_t id, int32_t speed, int32_t offset, OnOff done_behaviour);
 int32_t setHomingParameters(modbus_t* ctx, int32_t id, int32_t speed, int32_t offset, OnOff done_behaviour);
 
-void setPosParametersMsg(std::queue<AxisMsg>* que, int32_t id, int32_t speed, int32_t offset, OnOff done_behaviour);
-int32_t setPosParameters(modbus_t* ctx, int32_t id, int32_t speed, int32_t offset, OnOff done_behaviour);
+void setPosParametersMsg(std::queue<AxisMsg>* que, int32_t id);
+int32_t setPosParameters(modbus_t* ctx, int32_t id);
+void setPositionMsg(std::queue<AxisMsg>* que, int32_t id, int32_t position, int32_t speed, int32_t acc, int32_t dec);
+int32_t setPosition(modbus_t* ctx, int32_t id, int32_t position, int32_t speed, int32_t acc, int32_t dec);

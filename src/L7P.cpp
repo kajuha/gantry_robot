@@ -117,52 +117,138 @@ int32_t setHomingParameters(modbus_t* ctx, int32_t id, int32_t speed, int32_t of
     return 1;
 }
 
-void setPosParametersMsg(std::queue<AxisMsg>* que, int32_t id, int32_t speed, int32_t offset, OnOff done_behaviour) {
+void setPosParametersMsg(std::queue<AxisMsg>* que, int32_t id) {
     static AxisMsg axisMsg;
 
 	axisMsg.type = CommandType::setPosParameters;
 
 	axisMsg.id = id;
-	axisMsg.speed = speed;
-	axisMsg.offset = offset;
-	axisMsg.done_behaviour = done_behaviour;
 
 	que->push(axisMsg);
 }
 
-int32_t setPosParameters(modbus_t* ctx, int32_t id, int32_t speed, int32_t offset, OnOff done_behaviour) {
-#define POS_CTRL_MODE_ADDR          0x3000
-#define POS_CTRL_MODE_VAL           0
-#define POS_START_INDEX_NUMBER_ADDR 0x3009
-#define POS_START_INDEX_NUMBER_VAL  0
-#define POS_INDEX_TYPE_ADDR         0x3101
-#define POS_INDEX_TYPE_VAL          0
-#define POS_REG_DISTANCE_ADDR       0x310A
-#define POS_REG_DISTANCE_VAL        0
-#define POS_REG_VELOCITY_ADDR       0x310C
-#define POS_REG_VELOCITY_VAL        1
-#define POS_REPEAT_COUNT_ADDR       0x310E
-#define POS_REPEAT_COUNT_VAL        1
-#define POS_DWELLTIME_ADDR          0x310F
-#define POS_DWELLTIME_VAL           0
-#define POS_NEXT_INDEX_ADDR         0x3110
-#define POS_NEXT_INDEX_VAL          0
-#define POS_ACTION_ADDR             0x3111
-#define POS_ACTION_VAL              0
-#define POS_DISTANCE_ADDR           0x3102
-#define POS_DISTANCE_VAL            0
-#define POS_VELOCITY_ADDR           0x3104
-#define POS_VELOCITY_VAL            10000
-#define POS_ACCELERATION_ADDR       0x3106
-#define POS_ACCELERATION_VAL        100000
-#define POS_DECELERATION_ADDR       0x3108
-#define POS_DECELERATION_VAL        100000
-    if (!setAxisParameter(ctx, id, HOMING_METHOD_ADDR, HOMING_METHOD_VAL, OnOff::on)) {
-        reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : HOMING_METHOD error\n", __FILENAME__, __FUNCTION__, __LINE__);
+int32_t setPosParameters(modbus_t* ctx, int32_t id) {
+    if (!setAxisParameter(ctx, id, POS_CTRL_MODE_ADDR, POS_CTRL_MODE_VAL, OnOff::on)) {
+        reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : POS_CTRL_MODE_ADDR error\n", __FILENAME__, __FUNCTION__, __LINE__);
+
+        return -1;
+    }
+
+    if (!setAxisParameter(ctx, id, POS_START_INDEX_NUMBER_ADDR, POS_START_INDEX_NUMBER_VAL, OnOff::on)) {
+        reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : POS_START_INDEX_NUMBER_ADDR error\n", __FILENAME__, __FUNCTION__, __LINE__);
+
+        return -1;
+    }
+
+    if (!setAxisParameter(ctx, id, POS_INDEX_TYPE_ADDR, POS_INDEX_TYPE_VAL, OnOff::on)) {
+        reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : POS_INDEX_TYPE_ADDR error\n", __FILENAME__, __FUNCTION__, __LINE__);
+
+        return -1;
+    }
+
+    if (!setAxisParameter(ctx, id, POS_REG_DISTANCE_ADDR, POS_REG_DISTANCE_VAL, OnOff::on)) {
+        reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : POS_REG_DISTANCE_ADDR error\n", __FILENAME__, __FUNCTION__, __LINE__);
+
+        return -1;
+    }
+
+    if (!setAxisParameter(ctx, id, POS_REG_VELOCITY_ADDR, POS_REG_VELOCITY_VAL, OnOff::on)) {
+        reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : POS_REG_VELOCITY_ADDR error\n", __FILENAME__, __FUNCTION__, __LINE__);
+
+        return -1;
+    }
+
+    if (!setAxisParameter(ctx, id, POS_REPEAT_COUNT_ADDR, POS_REPEAT_COUNT_VAL, OnOff::on)) {
+        reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : POS_REPEAT_COUNT_ADDR error\n", __FILENAME__, __FUNCTION__, __LINE__);
+
+        return -1;
+    }
+
+    if (!setAxisParameter(ctx, id, POS_DWELLTIME_ADDR, POS_DWELLTIME_VAL, OnOff::on)) {
+        reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : POS_DWELLTIME_ADDR error\n", __FILENAME__, __FUNCTION__, __LINE__);
+
+        return -1;
+    }
+
+    if (!setAxisParameter(ctx, id, POS_NEXT_INDEX_ADDR, POS_NEXT_INDEX_VAL, OnOff::on)) {
+        reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : POS_NEXT_INDEX_ADDR error\n", __FILENAME__, __FUNCTION__, __LINE__);
+
+        return -1;
+    }
+
+    if (!setAxisParameter(ctx, id, POS_ACTION_ADDR, POS_ACTION_VAL, OnOff::on)) {
+        reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : POS_ACTION_ADDR error\n", __FILENAME__, __FUNCTION__, __LINE__);
+
+        return -1;
+    }
+
+    if (!setAxisParameter(ctx, id, POS_DISTANCE_ADDR, POS_DISTANCE_VAL, OnOff::on)) {
+        reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : POS_DISTANCE_ADDR error\n", __FILENAME__, __FUNCTION__, __LINE__);
+
+        return -1;
+    }
+
+    if (!setAxisParameter(ctx, id, POS_VELOCITY_ADDR, POS_VELOCITY_VAL, OnOff::on)) {
+        reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : POS_VELOCITY_ADDR error\n", __FILENAME__, __FUNCTION__, __LINE__);
+
+        return -1;
+    }
+
+    if (!setAxisParameter(ctx, id, POS_ACCELERATION_ADDR, POS_ACCELERATION_VAL, OnOff::on)) {
+        reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : POS_ACCELERATION_ADDR error\n", __FILENAME__, __FUNCTION__, __LINE__);
+
+        return -1;
+    }
+
+    if (!setAxisParameter(ctx, id, POS_DECELERATION_ADDR, POS_DECELERATION_VAL, OnOff::on)) {
+        reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : POS_DECELERATION_ADDR error\n", __FILENAME__, __FUNCTION__, __LINE__);
 
         return -1;
     }
 
     // setPosParameters is success : 1, fail : -1
+    return 1;
+}
+
+void setPositionMsg(std::queue<AxisMsg>* que, int32_t id, int32_t position, int32_t speed, int32_t acc, int32_t dec) {
+    static AxisMsg axisMsg;
+
+	axisMsg.type = CommandType::setPosition;
+
+	axisMsg.id = id;
+    axisMsg.position = position;
+    axisMsg.speed = speed;
+    axisMsg.acc = acc;
+    axisMsg.dec = dec;
+
+	que->push(axisMsg);
+}
+
+int32_t setPosition(modbus_t* ctx, int32_t id, int32_t position, int32_t speed, int32_t acc, int32_t dec) {
+    if (!setAxisParameter(ctx, id, POS_DISTANCE_ADDR, position, OnOff::on)) {
+        reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : POS_DISTANCE_ADDR, error\n", __FILENAME__, __FUNCTION__, __LINE__);
+
+        return -1;
+    }
+
+    if (!setAxisParameter(ctx, id, POS_VELOCITY_ADDR, speed, OnOff::on)) {
+        reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : POS_VELOCITY_ADDR, error\n", __FILENAME__, __FUNCTION__, __LINE__);
+
+        return -1;
+    }
+
+    if (!setAxisParameter(ctx, id, POS_ACCELERATION_ADDR, acc, OnOff::on)) {
+        reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : POS_ACCELERATION_ADDR, error\n", __FILENAME__, __FUNCTION__, __LINE__);
+
+        return -1;
+    }
+
+    if (!setAxisParameter(ctx, id, POS_DECELERATION_ADDR, dec, OnOff::on)) {
+        reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : POS_DECELERATION_ADDR, error\n", __FILENAME__, __FUNCTION__, __LINE__);
+
+        return -1;
+    }
+
+    // setPosition is success : 1, fail : -1
     return 1;
 }
