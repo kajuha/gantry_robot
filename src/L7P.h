@@ -9,15 +9,58 @@
 #define AXIS_Y  12
 #define AXIS_Z  13
 
-#define HOMING_SPEED_X  5000
-#define HOMING_SPEED_Y  5000
-#define HOMING_SPEED_Z  5000
-#define HOMING_OFFSET_X 131072
-#define HOMING_OFFSET_Y 5160
-#define HOMING_OFFSET_Z 8097
-#define HOMING_DONE_BEHAVIOUR_X OnOff::off
-#define HOMING_DONE_BEHAVIOUR_Y OnOff::on
-#define HOMING_DONE_BEHAVIOUR_Z OnOff::on
+// GENERAL DEFAULT
+#define Q_STOP_DECELERATION_ADDR    0x6034
+#define Q_STOP_DECELERATION_VAL     10000
+
+// HOMING DEFAULT
+#define HOMING_METHOD_ADDR          0x603E
+#define HOMING_METHOD_VAL           24
+#define HOMING_SWITCH_SPEED_ADDR    0x6041
+#define HOMING_ZERO_SPEED_ADDR      0x6043
+#define HOMING_MIN_SPEED_VAL        5000
+#define HOMING_SPEED_X_VAL          5000
+#define HOMING_SPEED_Y_VAL          5000
+#define HOMING_SPEED_Z_VAL          5000
+#define HOMING_ACCELERATION_ADDR    0x6045
+#define HOMING_ACCELERATION_VAL     10000 
+#define HOMING_OFFSET_ADDR          0x6024
+#define HOMING_OFFSET_X_VAL         131072
+#define HOMING_OFFSET_Y_VAL         5160
+#define HOMING_OFFSET_Z_VAL         8097
+#define HOMING_DONE_BEHAVIOUR_ADDR  0x201F
+#define HOMING_DONE_BEHAVIOUR_X_VAL OnOff::off
+#define HOMING_DONE_BEHAVIOUR_Y_VAL OnOff::on
+#define HOMING_DONE_BEHAVIOUR_Z_VAL OnOff::on
+
+// POSITION DEFAULT
+#define POS_CTRL_MODE_ADDR          0x3000
+#define POS_CTRL_MODE_VAL           0
+#define POS_START_INDEX_NUMBER_ADDR 0x3009
+#define POS_START_INDEX_NUMBER_VAL  0
+#define POS_INDEX_TYPE_ADDR         0x3101
+#define POS_INDEX_TYPE_VAL          0
+#define POS_REG_DISTANCE_ADDR       0x310A
+#define POS_REG_DISTANCE_VAL        0
+#define POS_REG_VELOCITY_ADDR       0x310C
+#define POS_REG_VELOCITY_VAL        1
+#define POS_REPEAT_COUNT_ADDR       0x310E
+#define POS_REPEAT_COUNT_VAL        1
+#define POS_DWELLTIME_ADDR          0x310F
+#define POS_DWELLTIME_VAL           0
+#define POS_NEXT_INDEX_ADDR         0x3110
+#define POS_NEXT_INDEX_VAL          0
+#define POS_ACTION_ADDR             0x3111
+#define POS_ACTION_VAL              0
+
+#define POS_DISTANCE_ADDR           0x3102
+#define POS_DISTANCE_VAL            0
+#define POS_VELOCITY_ADDR           0x3104
+#define POS_VELOCITY_VAL            10000
+#define POS_ACCELERATION_ADDR       0x3106
+#define POS_ACCELERATION_VAL        100000
+#define POS_DECELERATION_ADDR       0x3108
+#define POS_DECELERATION_VAL        100000
 
 #define READ_COIL_ADDR  0x00
 #define READ_COIL_SIZE  0x40
@@ -25,11 +68,11 @@
 #define WRITE_COIL_SIZE 0x20
 
 enum class CommandCase {
-	NONE, HOME, POSITION, JOG
+	IDLE, HOME, POSITION, JOG, ERROR
 };
 
 enum class FunctionCase {
-	INIT, SET, ACTION, IDLE
+	INIT, SET, ACTION, IDLE, ERROR
 };
 
 enum class OnOff {
@@ -47,11 +90,12 @@ enum class AxisCommand {
 enum class CommandType {
     setCommand, getStatus,
     setParameter, getParameter,
-    setHomingParameters
+    setHomingParameters,
+    setPosParameters, setPosition
 };
 
 struct AxisMsg {
-    uint8_t id;
+    int32_t id;
     CommandType type;
     AxisCommand axisCommand;
     OnOff onOff;
@@ -61,8 +105,12 @@ struct AxisMsg {
     OnOff done_behaviour;
 };
 
-void setAxisCommandMsg(std::queue<AxisMsg>* que, uint8_t id, AxisCommand axisCommand, OnOff onOff);
+void setAxisCommandMsg(std::queue<AxisMsg>* que, int32_t id, AxisCommand axisCommand, OnOff onOff);
 int32_t setAxisCommand(modbus_t* ctx, int32_t id, AxisCommand axisCommand, OnOff onOff);
 int32_t getAxisStatus(modbus_t* ctx, int32_t id, gantry_robot::Status* status);
 
+void setHomingParametersMsg(std::queue<AxisMsg>* que, int32_t id, int32_t speed, int32_t offset, OnOff done_behaviour);
 int32_t setHomingParameters(modbus_t* ctx, int32_t id, int32_t speed, int32_t offset, OnOff done_behaviour);
+
+void setPosParametersMsg(std::queue<AxisMsg>* que, int32_t id, int32_t speed, int32_t offset, OnOff done_behaviour);
+int32_t setPosParameters(modbus_t* ctx, int32_t id, int32_t speed, int32_t offset, OnOff done_behaviour);

@@ -7,6 +7,7 @@
 #include <modbus.h>
 
 #include "L7P.h"
+#include "main.h"
 
 int32_t getObjType(int32_t address) {
     for (int i=0; i<REGISTER_NUMBER; i++) {
@@ -29,14 +30,16 @@ int32_t setAxisParameter(modbus_t* ctx, int32_t id, int32_t index, int32_t value
     *((int32_t*)write_data) = value;
 
     if (modbus_set_slave(ctx, id) == -1) {
-        printf("[%s]: modbus_set_slave error: %s \n", __FUNCTION__ , modbus_strerror(errno));
+        reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : slave: #%d, index: 0x%04x, error msg: %s \n",
+            __FILENAME__, __FUNCTION__, __LINE__, id, index, modbus_strerror(errno));
 
         return -1;
     } else {
         ret = modbus_write_registers(ctx, index, objType, write_data);
 
         if (ret < 0) {
-            printf("[%s]: modbus_write_registers[0x%04x] error: %s \n", __FUNCTION__, index, modbus_strerror(errno));
+            reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : modbus_write_registers[0x%04x] error: %s \n",
+                __FILENAME__, __FUNCTION__, __LINE__, index, modbus_strerror(errno));
 
             return -1;
         }
@@ -44,7 +47,8 @@ int32_t setAxisParameter(modbus_t* ctx, int32_t id, int32_t index, int32_t value
             ret = getAxisParameter(ctx, id, index, &getValue);
 
             if (value!=getValue && ret != -1) {
-                printf("[%s]: getAxisParameter[0x%04x] error: %s \n", __FUNCTION__, index, modbus_strerror(errno));
+                reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : getAxisParameter[0x%04x] error: %s \n",
+                    __FILENAME__, __FUNCTION__, __LINE__, index, modbus_strerror(errno));
 
                 return -1;
             }
@@ -65,7 +69,8 @@ int32_t getAxisParameter(modbus_t* ctx, int32_t id, int32_t index, int32_t* valu
     *((int32_t*)read_data) = 0x00000000;
 
     if (modbus_set_slave(ctx, id) == -1) {
-        printf("[%s]: modbus_set_slave error: %s \n", __FUNCTION__ , modbus_strerror(errno));
+        reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : slave: #%d, index: 0x%04x, error msg: %s \n",
+            __FILENAME__, __FUNCTION__, __LINE__, id, index, modbus_strerror(errno));
 
         return -1;
     } else {
@@ -74,7 +79,8 @@ int32_t getAxisParameter(modbus_t* ctx, int32_t id, int32_t index, int32_t* valu
         if (ret >= 0 && ret == objType) {
             *value = *((int32_t*)read_data);
         } else {
-            printf("[%s]: modbus_read_registers[0x%04x] error: %s \n", __FUNCTION__, index, modbus_strerror(errno));
+            reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : modbus_read_registers[0x%04x] error: %s \n",
+                __FILENAME__, __FUNCTION__, __LINE__, index, modbus_strerror(errno));
 
             return -1;
         }
