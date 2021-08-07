@@ -107,13 +107,67 @@ int32_t setHomingParameters(modbus_t* ctx, int32_t id, int32_t speed, int32_t of
         return -1;
     }
 
-    if (!setAxisParameter(ctx, id, HOMING_DONE_BEHAVIOUR_ADDR, (uint16_t)done_behaviour, OnOff::on)) {
+    if (!setAxisParameter(ctx, id, HOMING_DONE_BEHAVIOUR_ADDR, (int32_t)done_behaviour, OnOff::on)) {
         reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : HOMING_DONE_BEHAVIOUR error\n", __FILENAME__, __FUNCTION__, __LINE__);
 
         return -1;
     }
 
     // setHomingParameters is success : 1, fail : -1
+    return 1;
+}
+
+void setJogParametersMsg(std::queue<AxisMsg>* que, int32_t id, int32_t speed, int32_t acc, int32_t dec, int32_t s_curve, OnOff servo_lock) {
+    static AxisMsg axisMsg;
+
+	axisMsg.type = CommandType::setJogParameters;
+
+	axisMsg.id = id;
+	axisMsg.speed = speed;
+	axisMsg.acc = acc;
+	axisMsg.dec = dec;
+	axisMsg.s_curve = s_curve;
+	axisMsg.servo_lock = servo_lock;
+
+	que->push(axisMsg);
+}
+
+int32_t setJogParameters(modbus_t* ctx, int32_t id, int32_t speed, int32_t acc, int32_t dec, int32_t s_curve, OnOff servo_lock) {
+    if (speed < JOG_MIN_SPEED_VAL) {
+        speed = JOG_MIN_SPEED_VAL;
+    }
+    
+    if (!setAxisParameter(ctx, id, JOG_SPEED_ADDR, speed, OnOff::on)) {
+        reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : JOG_SPEED_ADDR error\n", __FILENAME__, __FUNCTION__, __LINE__);
+
+        return -1;
+    }
+
+    if (!setAxisParameter(ctx, id, JOG_ACCELERATION_ADDR, acc, OnOff::on)) {
+        reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : JOG_ACCELERATION_ADDR error\n", __FILENAME__, __FUNCTION__, __LINE__);
+
+        return -1;
+    }
+
+    if (!setAxisParameter(ctx, id, JOG_DECELERATION_ADDR, dec, OnOff::on)) {
+        reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : JOG_DECELERATION_ADDR error\n", __FILENAME__, __FUNCTION__, __LINE__);
+
+        return -1;
+    }
+
+    if (!setAxisParameter(ctx, id, JOG_S_CURVE_ADDR, s_curve, OnOff::on)) {
+        reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : JOG_S_CURVE_ADDR error\n", __FILENAME__, __FUNCTION__, __LINE__);
+
+        return -1;
+    }
+
+    if (!setAxisParameter(ctx, id, JOG_SERVO_LOCK_ADDR, (int32_t)servo_lock, OnOff::on)) {
+        reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : JOG_SERVO_LOCK_ADDR error\n", __FILENAME__, __FUNCTION__, __LINE__);
+
+        return -1;
+    }
+
+    // setJogParameters is success : 1, fail : -1
     return 1;
 }
 

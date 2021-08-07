@@ -51,6 +51,19 @@
 #define HOMING_DONE_BEHAVIOUR_Y_VAL OnOff::on
 #define HOMING_DONE_BEHAVIOUR_Z_VAL OnOff::on
 
+// JOG DEFAULT
+#define JOG_MIN_SPEED_VAL           100
+#define JOG_SPEED_ADDR              0x2300
+#define JOG_SPEED_VAL               100
+#define JOG_ACCELERATION_ADDR       0x2301
+#define JOG_ACCELERATION_VAL        20
+#define JOG_DECELERATION_ADDR       0x2302
+#define JOG_DECELERATION_VAL        20
+#define JOG_S_CURVE_ADDR            0x2303
+#define JOG_S_CURVE_VAL             0
+#define JOG_SERVO_LOCK_ADDR         0x2311
+#define JOG_SERVO_LOCK_VAL          OnOff::off
+
 // POSITION DEFAULT
 #define POS_CTRL_MODE_ADDR          0x3000
 #define POS_CTRL_MODE_VAL           0
@@ -86,11 +99,11 @@
 #define WRITE_COIL_SIZE 0x20
 
 enum class CommandCase {
-	IDLE, HOME, POSITION, JOG, ERROR
+	IDLE, HOME, JOG, POSITION, ERROR
 };
 
 enum class FunctionCase {
-	INIT, SET, ACTION, IDLE, ERROR
+	INIT, SET, ACTION, DONE, IDLE, ERROR
 };
 
 enum class OnOff {
@@ -109,6 +122,7 @@ enum class CommandType {
     setCommand, getStatus,
     setParameter, getParameter,
     setHomingParameters,
+    setJogParameters,
     setPosParameters, setPosition
 };
 
@@ -120,10 +134,12 @@ struct AxisMsg {
     gantry_robot::Status* status;
     int32_t position;
     int32_t speed;
+    int32_t s_curve;
     int32_t acc;
     int32_t dec;
     int32_t offset;
     OnOff done_behaviour;
+    OnOff servo_lock;
 };
 
 void setAxisCommandMsg(std::queue<AxisMsg>* que, int32_t id, AxisCommand axisCommand, OnOff onOff);
@@ -132,6 +148,9 @@ int32_t getAxisStatus(modbus_t* ctx, int32_t id, gantry_robot::Status* status);
 
 void setHomingParametersMsg(std::queue<AxisMsg>* que, int32_t id, int32_t speed, int32_t offset, OnOff done_behaviour);
 int32_t setHomingParameters(modbus_t* ctx, int32_t id, int32_t speed, int32_t offset, OnOff done_behaviour);
+
+void setJogParametersMsg(std::queue<AxisMsg>* que, int32_t id, int32_t speed, int32_t acc, int32_t dec, int32_t s_curve, OnOff servo_lock);
+int32_t setJogParameters(modbus_t* ctx, int32_t id, int32_t speed, int32_t acc, int32_t dec, int32_t s_curve, OnOff servo_lock);
 
 void setPosParametersMsg(std::queue<AxisMsg>* que, int32_t id);
 int32_t setPosParameters(modbus_t* ctx, int32_t id);
