@@ -49,21 +49,21 @@ bool serviceHomingCallback(gantry_robot::Homing::Request &req, gantry_robot::Hom
 	setHomingParametersMsg(&que, req.id, req.speed, req.offset, req.done_behaviour?OnOff::on:OnOff::off);
 
 	switch (req.id) {
-		case AXIS_X:
+		case AXIS_X_NUM:
 			if (info.axisX.status.output.org == (uint8_t)OnOff::on) {
 			} else {
 				setAxisCommandMsg(&que, req.id, AxisCommand::hstart, OnOff::on);
 				setAxisCommandMsg(&que, req.id, AxisCommand::hstart, OnOff::off);
 			}
 		break;
-		case AXIS_Y:
+		case AXIS_Y_NUM:
 			if (info.axisY.status.output.org == (uint8_t)OnOff::on) {
 			} else {
 				setAxisCommandMsg(&que, req.id, AxisCommand::hstart, OnOff::on);
 				setAxisCommandMsg(&que, req.id, AxisCommand::hstart, OnOff::off);
 			}
 		break;
-		case AXIS_Z:
+		case AXIS_Z_NUM:
 			if (info.axisZ.status.output.org == (uint8_t)OnOff::on) {
 			} else {
 				setAxisCommandMsg(&que, req.id, AxisCommand::hstart, OnOff::on);
@@ -153,17 +153,17 @@ void modbusLoop(int rate, std::queue<AxisMsg>* que, ModbusLoopState* modbusLoopS
 		} else {
 		}
 
-		if (!getAxisStatus(ctx, AXIS_X, &info.axisX.status)) reprintf(ScreenOutput::ERROR, "getAxisStatus AXIS_X error\n");		
-		if (!getAxisParameter(ctx, AXIS_X, ACT_POS, &info.axisX.position)) reprintf(ScreenOutput::ERROR, "getAxisParameter AXIS_X error\n");
-		if (!getAxisParameter(ctx, AXIS_X, ACT_SPD, &info.axisX.speed)) reprintf(ScreenOutput::ERROR, "getAxisParameter AXIS_X error\n");
+		if (!getAxisStatus(ctx, AXIS_X_NUM, &info.axisX.status)) reprintf(ScreenOutput::ERROR, "getAxisStatus AXIS_X error\n");		
+		if (!getAxisParameter(ctx, AXIS_X_NUM, ACT_POS, &info.axisX.position)) reprintf(ScreenOutput::ERROR, "getAxisParameter AXIS_X error\n");
+		if (!getAxisParameter(ctx, AXIS_X_NUM, ACT_SPD, &info.axisX.speed)) reprintf(ScreenOutput::ERROR, "getAxisParameter AXIS_X error\n");
 
-		if (!getAxisStatus(ctx, AXIS_Y, &info.axisY.status)) reprintf(ScreenOutput::ERROR, "getAxisStatus AXIS_Y error\n");		
-		if (!getAxisParameter(ctx, AXIS_Y, ACT_POS, &info.axisY.position)) reprintf(ScreenOutput::ERROR, "getAxisParameter AXIS_Y error\n");
-		if (!getAxisParameter(ctx, AXIS_Y, ACT_SPD, &info.axisY.speed)) reprintf(ScreenOutput::ERROR, "getAxisParameter AXIS_Y error\n");
+		if (!getAxisStatus(ctx, AXIS_Y_NUM, &info.axisY.status)) reprintf(ScreenOutput::ERROR, "getAxisStatus AXIS_Y error\n");		
+		if (!getAxisParameter(ctx, AXIS_Y_NUM, ACT_POS, &info.axisY.position)) reprintf(ScreenOutput::ERROR, "getAxisParameter AXIS_Y error\n");
+		if (!getAxisParameter(ctx, AXIS_Y_NUM, ACT_SPD, &info.axisY.speed)) reprintf(ScreenOutput::ERROR, "getAxisParameter AXIS_Y error\n");
 
-		if (!getAxisStatus(ctx, AXIS_Z, &info.axisZ.status)) reprintf(ScreenOutput::ERROR, "getAxisStatus AXIS_Z error\n");		
-		if (!getAxisParameter(ctx, AXIS_Z, ACT_POS, &info.axisZ.position)) reprintf(ScreenOutput::ERROR, "getAxisParameter AXIS_Z error\n");
-		if (!getAxisParameter(ctx, AXIS_Z, ACT_SPD, &info.axisZ.speed)) reprintf(ScreenOutput::ERROR, "getAxisParameter AXIS_Z error\n");
+		if (!getAxisStatus(ctx, AXIS_Z_NUM, &info.axisZ.status)) reprintf(ScreenOutput::ERROR, "getAxisStatus AXIS_Z error\n");		
+		if (!getAxisParameter(ctx, AXIS_Z_NUM, ACT_POS, &info.axisZ.position)) reprintf(ScreenOutput::ERROR, "getAxisParameter AXIS_Z error\n");
+		if (!getAxisParameter(ctx, AXIS_Z_NUM, ACT_SPD, &info.axisZ.speed)) reprintf(ScreenOutput::ERROR, "getAxisParameter AXIS_Z error\n");
 
 		ts_now = ros::Time::now();
         info.header.stamp = ts_now;
@@ -176,9 +176,9 @@ void modbusLoop(int rate, std::queue<AxisMsg>* que, ModbusLoopState* modbusLoopS
 		r.sleep();
 	}
 
-	setAxisCommand(ctx, AXIS_X, AxisCommand::stop, OnOff::on);
-	setAxisCommand(ctx, AXIS_Y, AxisCommand::stop, OnOff::on);
-	setAxisCommand(ctx, AXIS_Z, AxisCommand::stop, OnOff::on);
+	setAxisCommand(ctx, AXIS_X_NUM, AxisCommand::stop, OnOff::on);
+	setAxisCommand(ctx, AXIS_Y_NUM, AxisCommand::stop, OnOff::on);
+	setAxisCommand(ctx, AXIS_Z_NUM, AxisCommand::stop, OnOff::on);
 }
 
 int main(int argc, char* argv[]) {
@@ -198,7 +198,7 @@ int main(int argc, char* argv[]) {
 	nh.getParam("baud_rate", baud_rate);
 #endif
 
-	CommandCase cmdCase = CommandCase::IDLE;
+	CommandCase cmdCase = CommandCase::INIT;
 	CommandCase cmdCasePre = cmdCase;
 	FunctionCase funcCase = FunctionCase::INIT;
 
@@ -278,7 +278,7 @@ int main(int argc, char* argv[]) {
 		reprintf(ScreenOutput::NO, "[%s{%s}(%d)] : CommandCase::%d FunctionCase::%d\n", __FILENAME__, __FUNCTION__, __LINE__, (int32_t)cmdCase, (int32_t)funcCase);
 
 		switch (cmdCase) {
-			case CommandCase::IDLE:
+			case CommandCase::INIT:
 				switch (funcCase) {
 					case FunctionCase::INIT:
 						funcCase = FunctionCase::SET;
@@ -288,7 +288,7 @@ int main(int argc, char* argv[]) {
 					break;
 					case FunctionCase::ACTION:
 						if (modbusLoopState == ModbusLoopState::RUNNING) {
-							reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandCase::IDLE FunctionCase::ACTION success\n", __FILENAME__, __FUNCTION__, __LINE__);
+							reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandCase::INIT FunctionCase::ACTION success\n", __FILENAME__, __FUNCTION__, __LINE__);
 							cmdCase = CommandCase::HOME;
 							funcCase = FunctionCase::INIT;
 						} else {
@@ -310,22 +310,23 @@ int main(int argc, char* argv[]) {
 				switch (funcCase) {
 					case FunctionCase::INIT:
 						// Axis Reset
-						setAxisCommandMsg(&que, AXIS_X, AxisCommand::emg, OnOff::off);
-						setAxisCommandMsg(&que, AXIS_Y, AxisCommand::emg, OnOff::off);
-						setAxisCommandMsg(&que, AXIS_Z, AxisCommand::emg, OnOff::off);
-						setAxisCommandMsg(&que, AXIS_X, AxisCommand::a_rst, OnOff::on);
-						setAxisCommandMsg(&que, AXIS_Y, AxisCommand::a_rst, OnOff::on);
-						setAxisCommandMsg(&que, AXIS_Z, AxisCommand::a_rst, OnOff::on);
-						setAxisCommandMsg(&que, AXIS_X, AxisCommand::a_rst, OnOff::off);
-						setAxisCommandMsg(&que, AXIS_Y, AxisCommand::a_rst, OnOff::off);
-						setAxisCommandMsg(&que, AXIS_Z, AxisCommand::a_rst, OnOff::off);
-						setAxisCommandMsg(&que, AXIS_X, AxisCommand::stop, OnOff::off);
-						setAxisCommandMsg(&que, AXIS_Y, AxisCommand::stop, OnOff::off);
-						setAxisCommandMsg(&que, AXIS_Z, AxisCommand::stop, OnOff::off);
-						setAxisCommandMsg(&que, AXIS_X, AxisCommand::sv_on, OnOff::on);
-						setAxisCommandMsg(&que, AXIS_Y, AxisCommand::sv_on, OnOff::on);
-						setAxisCommandMsg(&que, AXIS_Z, AxisCommand::sv_on, OnOff::on);
+						setAxisCommandMsg(&que, AXIS_X_NUM, AxisCommand::emg, OnOff::off);
+						setAxisCommandMsg(&que, AXIS_Y_NUM, AxisCommand::emg, OnOff::off);
+						setAxisCommandMsg(&que, AXIS_Z_NUM, AxisCommand::emg, OnOff::off);
+						setAxisCommandMsg(&que, AXIS_X_NUM, AxisCommand::a_rst, OnOff::on);
+						setAxisCommandMsg(&que, AXIS_Y_NUM, AxisCommand::a_rst, OnOff::on);
+						setAxisCommandMsg(&que, AXIS_Z_NUM, AxisCommand::a_rst, OnOff::on);
+						setAxisCommandMsg(&que, AXIS_X_NUM, AxisCommand::a_rst, OnOff::off);
+						setAxisCommandMsg(&que, AXIS_Y_NUM, AxisCommand::a_rst, OnOff::off);
+						setAxisCommandMsg(&que, AXIS_Z_NUM, AxisCommand::a_rst, OnOff::off);
+						setAxisCommandMsg(&que, AXIS_X_NUM, AxisCommand::stop, OnOff::off);
+						setAxisCommandMsg(&que, AXIS_Y_NUM, AxisCommand::stop, OnOff::off);
+						setAxisCommandMsg(&que, AXIS_Z_NUM, AxisCommand::stop, OnOff::off);
+						setAxisCommandMsg(&que, AXIS_X_NUM, AxisCommand::sv_on, OnOff::on);
+						setAxisCommandMsg(&que, AXIS_Y_NUM, AxisCommand::sv_on, OnOff::on);
+						setAxisCommandMsg(&que, AXIS_Z_NUM, AxisCommand::sv_on, OnOff::on);
 
+#if 0
 						if (info.axisZ.status.output.org == (uint8_t)OnOff::on) {
 							reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandCase::HOME FunctionCase::INIT !already done!\n", __FILENAME__, __FUNCTION__, __LINE__);
 							funcCase = FunctionCase::IDLE;
@@ -333,18 +334,21 @@ int main(int argc, char* argv[]) {
 							reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandCase::HOME FunctionCase::INIT\n", __FILENAME__, __FUNCTION__, __LINE__);
 							funcCase = FunctionCase::SET;
 						}
+#else
+						funcCase = FunctionCase::IDLE;
+#endif
 					break;
 					case FunctionCase::SET:
 						reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandCase::HOME FunctionCase::SET\n", __FILENAME__, __FUNCTION__, __LINE__);
 						// Homing Parameter
-						setHomingParametersMsg(&que, AXIS_Z, HOMING_SPEED_Z_VAL, HOMING_OFFSET_Z_VAL, HOMING_DONE_BEHAVIOUR_Z_VAL);
+						setHomingParametersMsg(&que, AXIS_Z_NUM, HOMING_SPEED_Z_VAL, HOMING_OFFSET_Z_VAL, HOMING_DONE_BEHAVIOUR_Z_VAL);
 						funcCase = FunctionCase::ACTION;
 					break;
 					case FunctionCase::ACTION:
 						reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandCase::HOME FunctionCase::ACTION\n", __FILENAME__, __FUNCTION__, __LINE__);
 						// Homing
-						setAxisCommandMsg(&que, AXIS_Z, AxisCommand::hstart, OnOff::on);
-						setAxisCommandMsg(&que, AXIS_Z, AxisCommand::hstart, OnOff::off);
+						setAxisCommandMsg(&que, AXIS_Z_NUM, AxisCommand::hstart, OnOff::on);
+						setAxisCommandMsg(&que, AXIS_Z_NUM, AxisCommand::hstart, OnOff::off);
 						funcCase = FunctionCase::DONE;
 					break;
 					case FunctionCase::DONE:
@@ -367,6 +371,7 @@ int main(int argc, char* argv[]) {
 			case CommandCase::POSITION:
 				switch (funcCase) {
 					case FunctionCase::INIT:
+#if 0
 						if (info.axisZ.status.output.inpos1 == (uint8_t)OnOff::on &&
 							info.axisZ.status.output.inspd == (uint8_t)OnOff::on &&
 							info.axisZ.status.output.org == (uint8_t)OnOff::on) {
@@ -374,25 +379,21 @@ int main(int argc, char* argv[]) {
 						} else {
 						}
 						reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandCase::POSITION FunctionCase::INIT\n", __FILENAME__, __FUNCTION__, __LINE__);
+#else
+						funcCase = FunctionCase::SET;
+#endif
 					break;
 					case FunctionCase::SET:
 						reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandCase::POSITION FunctionCase::SET\n", __FILENAME__, __FUNCTION__, __LINE__);
 						// Position Parameter
-						setPosParametersMsg(&que, AXIS_X);
-						setPosParametersMsg(&que, AXIS_Y);
-						setPosParametersMsg(&que, AXIS_Z);
-						// // Position
-						// static int32_t pos = (int32_t)(ENCODER_PPR_AXIS_Z/8.0);
-						// pos *= -1;
-						// pos = 0;
-						// setPositionMsg(&que, AXIS_Z, pos, (int32_t)(ENCODER_PPR_AXIS_Z/8.0/1.0), (int32_t)(ENCODER_PPR_AXIS_Z/8.0/0.1), (int32_t)(ENCODER_PPR_AXIS_Z/8.0/0.1));
+						setPosParametersMsg(&que, AXIS_X_NUM);
+						setPosParametersMsg(&que, AXIS_Y_NUM);
+						setPosParametersMsg(&que, AXIS_Z_NUM);
+
 						funcCase = FunctionCase::ACTION;
 					break;
 					case FunctionCase::ACTION:
-						// reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandCase::POSITION FunctionCase::ACTION\n", __FILENAME__, __FUNCTION__, __LINE__);
-						// // Moving Position
-						// setAxisCommandMsg(&que, AXIS_Z, AxisCommand::start, OnOff::on);
-						// setAxisCommandMsg(&que, AXIS_Z, AxisCommand::start, OnOff::off);
+
 						funcCase = FunctionCase::DONE;
 					break;
 					case FunctionCase::DONE:
@@ -402,6 +403,7 @@ int main(int argc, char* argv[]) {
 						// if (info.axisZ.status.output.inpos1 == (uint8_t)OnOff::on) {
 						// 	funcCase = FunctionCase::SET;
 						// } else {
+							cmdCase = CommandCase::IDLE;
 							funcCase = FunctionCase::IDLE;
 						// }
 					break;
@@ -423,35 +425,41 @@ int main(int argc, char* argv[]) {
 					case FunctionCase::SET:
 						reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandCase::JOG FunctionCase::SET\n", __FILENAME__, __FUNCTION__, __LINE__);
 						// Jog Parameter
-						setJogParametersMsg(&que, AXIS_Z, JOG_MIN_SPEED_VAL, JOG_ACCELERATION_VAL, JOG_DECELERATION_VAL, JOG_S_CURVE_VAL, OnOff::off);
-						// Moving Jog
-						setAxisCommandMsg(&que, AXIS_Z, AxisCommand::jdir, OnOff::on);
-						setAxisCommandMsg(&que, AXIS_Z, AxisCommand::jstart, OnOff::on);
+						setJogParametersMsg(&que, AXIS_Z_NUM, JOG_MIN_SPEED_VAL, JOG_ACCELERATION_VAL, JOG_DECELERATION_VAL, JOG_S_CURVE_VAL, OnOff::off);
 						funcCase = FunctionCase::ACTION;
 					break;
 					case FunctionCase::ACTION:
-						reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandCase::JOG FunctionCase::ACTION\n", __FILENAME__, __FUNCTION__, __LINE__);
 						funcCase = FunctionCase::DONE;
 					break;
 					case FunctionCase::DONE:
 						funcCase = FunctionCase::IDLE;
 					break;
 					case FunctionCase::IDLE:
-						// Jog
-						static int32_t pos = (int32_t)(ENCODER_PPR_AXIS_Z/8.0);
-
-						if (info.axisZ.position > pos) {
-							setAxisCommandMsg(&que, AXIS_Z, AxisCommand::jdir, OnOff::on);
-							reprintf(ScreenOutput::ALWAYS, "[%s{%s}(%d)] : CommandCase::JOG FunctionCase::IDLE pos: %d > %d, jdir:on\n", __FILENAME__, __FUNCTION__, __LINE__, info.axisZ.position, pos);
-							funcCase = FunctionCase::ACTION;
-						} else if (info.axisZ.position < -pos) {
-							setAxisCommandMsg(&que, AXIS_Z, AxisCommand::jdir, OnOff::off);
-							reprintf(ScreenOutput::ALWAYS, "[%s{%s}(%d)] : CommandCase::JOG FunctionCase::IDLE pos: %d < %d, jdir:off\n", __FILENAME__, __FUNCTION__, __LINE__, info.axisZ.position, -pos);
-							funcCase = FunctionCase::ACTION;
-						} else {
-							funcCase = FunctionCase::IDLE;
-							reprintf(ScreenOutput::NO, "[%s{%s}(%d)] : CommandCase::JOG FunctionCase::IDLE pos: %d\n", __FILENAME__, __FUNCTION__, __LINE__, info.axisZ.position);
-						}
+						funcCase = FunctionCase::IDLE;
+					break;
+					case FunctionCase::ERROR:
+						cmdCase = CommandCase::ERROR;
+						funcCase = FunctionCase::INIT;
+					break;
+				}
+			break;
+			case CommandCase::IDLE:
+				switch (funcCase) {
+					case FunctionCase::INIT:
+						funcCase = FunctionCase::SET;
+					break;
+					case FunctionCase::SET:
+						funcCase = FunctionCase::ACTION;
+					break;
+					case FunctionCase::ACTION:
+						funcCase = FunctionCase::DONE;
+					break;
+					case FunctionCase::DONE:
+							reprintf(ScreenOutput::ALWAYS, "[%s{%s}(%d)] : CommandCase::IDLE FunctionCase::DONE\n", __FILENAME__, __FUNCTION__, __LINE__);
+						funcCase = FunctionCase::IDLE;
+					break;
+					case FunctionCase::IDLE:
+						funcCase = FunctionCase::IDLE;
 					break;
 					case FunctionCase::ERROR:
 						cmdCase = CommandCase::ERROR;

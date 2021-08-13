@@ -5,9 +5,9 @@
 #include <modbus.h>
 #include <queue>
 
-#define AXIS_X  11
-#define AXIS_Y  12
-#define AXIS_Z  13
+#define AXIS_X_NUM  11
+#define AXIS_Y_NUM  12
+#define AXIS_Z_NUM  13
 
 // GENERAL INFO
 #define ENCODER_PPR_AXIS_X          524288
@@ -26,7 +26,6 @@
 #define RATIO_SHAFT_AXIS_Y          64      // 이미 모터드라이버에 적용되어 있음
 #define RATIO_SHAFT_AXIS_Z          64      // 이미 모터드라이버에 적용되어 있음
 
-
 // GENERAL DEFAULT
 #define Q_STOP_DECELERATION_ADDR    0x6034
 #define Q_STOP_DECELERATION_VAL     10000
@@ -43,7 +42,8 @@
 #define HOMING_ACCELERATION_ADDR    0x6045
 #define HOMING_ACCELERATION_VAL     10000 
 #define HOMING_OFFSET_ADDR          0x6024
-#define HOMING_OFFSET_X_VAL         131072
+#define HOMING_OFFSET_X_VAL         0
+// #define HOMING_OFFSET_X_VAL         131072
 #define HOMING_OFFSET_Y_VAL         5160
 #define HOMING_OFFSET_Z_VAL         8097
 #define HOMING_DONE_BEHAVIOUR_ADDR  0x201F
@@ -99,7 +99,7 @@
 #define WRITE_COIL_SIZE 0x20
 
 enum class CommandCase {
-	IDLE, HOME, JOG, POSITION, ERROR
+	IDLE, HOME, JOG, POSITION, INIT, ERROR
 };
 
 enum class FunctionCase {
@@ -140,6 +140,65 @@ struct AxisMsg {
     int32_t offset;
     OnOff done_behaviour;
     OnOff servo_lock;
+};
+
+class GlobalInfo {
+    std::string node_name;
+
+    std::string serial_port;
+    int32_t baud_rate;
+    
+    int32_t axis_x_num;
+    int32_t axis_y_num;
+    int32_t axis_z_num;
+
+    int32_t encoder_ppr_axis_x;
+    int32_t encoder_ppr_axis_y;
+    int32_t encoder_ppr_axis_z;
+    int32_t stage_max_axis_x;
+    int32_t stage_max_axis_y;
+    int32_t stage_max_axis_z;
+    int32_t stage_lead_axis_x;
+    int32_t stage_lead_axis_y;
+    int32_t stage_lead_axis_z;
+    int32_t ratio_gear_axis_x;
+    int32_t ratio_gear_axis_y;
+    int32_t ratio_gear_axis_z;
+    int32_t ratio_shaft_axis_x;
+    int32_t ratio_shaft_axis_y;
+    int32_t ratio_shaft_axis_z;
+
+    int32_t q_stop_deceleration_val;
+    
+    int32_t homing_method_val;
+    int32_t homing_min_speed_val;
+    int32_t homing_speed_x_val;
+    int32_t homing_speed_y_val;
+    int32_t homing_speed_z_val;
+    int32_t homing_acceleration_val;
+    int32_t homing_offset_x_val;
+    int32_t homing_offset_y_val;
+    int32_t homing_offset_z_val;
+    int32_t homing_done_behaviour_x_val;
+    int32_t homing_done_behaviour_y_val;
+    int32_t homing_done_behaviour_z_val;
+
+    int32_t jog_min_speed_val;
+    int32_t jog_speed_val;
+    int32_t jog_acceleration_val;
+    int32_t jog_deceleration_val;
+    int32_t jog_s_curve_val;
+    int32_t jog_servo_lock_val;
+
+    int32_t pos_ctrl_mode_val;
+    int32_t pos_start_index_number_val;
+    int32_t pos_index_type_val;
+    int32_t pos_reg_distance_val;
+    int32_t pos_reg_velocity_val;
+    int32_t pos_repeat_count_val;
+    int32_t pos_dwelltime_val;
+    int32_t pos_next_index_val;
+    int32_t pos_action_val;
 };
 
 void setAxisCommandMsg(std::queue<AxisMsg>* que, int32_t id, AxisCommand axisCommand, OnOff onOff);

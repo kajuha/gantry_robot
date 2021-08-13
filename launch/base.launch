@@ -2,9 +2,62 @@
   <arg name="message_display" default="screen" doc="output type"/>
   
   <node pkg="gantry_robot" type="gantry_robot" name="gantry_robot" output="$(arg message_display)">
+    <param name="node_name" value="gantry_robot" />
+
     <param name="serial_port" value="/dev/ttyUSB0" />
     <param name="baud_rate" value="57600" />
-    <param name="slave_num" value="13" />
-    <param name="node_name" value="gantry_robot" />
+    
+    <param name="axis_x_num" value="11" />
+    <param name="axis_y_num" value="12" />
+    <param name="axis_z_num" value="13" />
+
+    <param name="encoder_ppr_axis_x" value="524288" />
+    <param name="encoder_ppr_axis_y" value="524288" />
+    <param name="encoder_ppr_axis_z" value="262144" />
+    <param name="stage_max_axis_x" value="500" />
+    <param name="stage_max_axis_y" value="500" />
+    <param name="stage_max_axis_z" value="500" />
+    <param name="stage_lead_axis_x" value="24" />
+    <param name="stage_lead_axis_y" value="25" />
+    <param name="stage_lead_axis_z" value="20" />
+    <param name="ratio_gear_axis_x" value="64" />
+    <param name="ratio_gear_axis_y" value="64" />
+    <param name="ratio_gear_axis_z" value="64" />
+    <param name="ratio_shaft_axis_x" value="1" />
+    <param name="ratio_shaft_axis_y" value="1" />
+    <param name="ratio_shaft_axis_z" value="1" />
+
+    <param name="q_stop_deceleration_val" value="10000" />
+    
+    <param name="homing_method_val" value="24" />
+    <param name="homing_min_speed_val" value="5000" />
+    <param name="homing_speed_x_val" value="5000" />
+    <param name="homing_speed_y_val" value="5000" />
+    <param name="homing_speed_z_val" value="5000" />
+    <param name="homing_acceleration_val" value="10000 " />
+    <param name="homing_offset_x_val" value="0" />
+    <param name="homing_offset_y_val" value="5160" />
+    <param name="homing_offset_z_val" value="8097" />
+    <param name="homing_done_behaviour_x_val" value="0" />
+    <param name="homing_done_behaviour_y_val" value="1" />
+    <param name="homing_done_behaviour_z_val" value="1" />
+
+    <param name="jog_min_speed_val" value="100" />
+    <param name="jog_speed_val" value="100" />
+    <param name="jog_acceleration_val" value="20" />
+    <param name="jog_deceleration_val" value="20" />
+    <param name="jog_s_curve_val" value="0" />
+    <param name="jog_servo_lock_val" value="0" />
+
+    <param name="pos_ctrl_mode_val" value="0" />
+    <param name="pos_start_index_number_val" value="0" />
+    <param name="pos_index_type_val" value="0" />
+    <param name="pos_reg_distance_val" value="0" />
+    <param name="pos_reg_velocity_val" value="1" />
+    <param name="pos_repeat_count_val" value="1" />
+    <param name="pos_dwelltime_val" value="0" />
+    <param name="pos_next_index_val" value="0" />
+    <param name="pos_action_val" value="0" />
+
   </node>
 </launch>
