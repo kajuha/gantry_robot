@@ -2,6 +2,8 @@
 
 #include <string.h>
 
+extern GlobalInfo gInfo;
+
 enum class ModbusLoopState {
     INIT, RUNNING, FINISH
 };

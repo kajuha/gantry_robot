@@ -9,6 +9,19 @@
 #include "ObjectDictionary.h"
 #include "main.h"
 
+int32_t axisToId(std::string axis) {
+    if (axis == "x") {
+        return gInfo.axis_x_num;
+    } else if (axis == "y") {
+        return gInfo.axis_y_num;
+    } else if (axis == "z") {
+        return gInfo.axis_z_num;
+    } else {
+        reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : axisToId, unknown axis string: %s \n", __FILENAME__, __FUNCTION__, __LINE__, axis);
+        return 0;
+    }
+}
+
 void setAxisCommandMsg(std::queue<AxisMsg>* que, int32_t id, AxisCommand axisCommand, OnOff onOff) {
     static AxisMsg axisMsg;
 
@@ -67,11 +80,11 @@ void setHomingParametersMsg(std::queue<AxisMsg>* que, int32_t id, int32_t speed,
 }
 
 int32_t setHomingParameters(modbus_t* ctx, int32_t id, int32_t speed, int32_t offset, OnOff done_behaviour) {
-    if (speed < HOMING_MIN_SPEED_VAL) {
-        speed = HOMING_MIN_SPEED_VAL;
+    if (speed < gInfo.homing_min_speed_val) {
+        speed = gInfo.homing_min_speed_val;
     }
 
-    if (!setAxisParameter(ctx, id, HOMING_METHOD_ADDR, HOMING_METHOD_VAL, OnOff::on)) {
+    if (!setAxisParameter(ctx, id, HOMING_METHOD_ADDR, gInfo.homing_method_val, OnOff::on)) {
         reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : HOMING_METHOD error\n", __FILENAME__, __FUNCTION__, __LINE__);
 
         return -1;
@@ -83,13 +96,13 @@ int32_t setHomingParameters(modbus_t* ctx, int32_t id, int32_t speed, int32_t of
         return -1;
     }
 
-    if (!setAxisParameter(ctx, id, HOMING_ZERO_SPEED_ADDR, HOMING_MIN_SPEED_VAL, OnOff::on)) {
+    if (!setAxisParameter(ctx, id, HOMING_ZERO_SPEED_ADDR, gInfo.homing_min_speed_val, OnOff::on)) {
         reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : HOMING_ZERO_SPEED error\n", __FILENAME__, __FUNCTION__, __LINE__);
 
         return -1;
     }
 
-    if (!setAxisParameter(ctx, id, HOMING_ACCELERATION_ADDR, HOMING_ACCELERATION_VAL, OnOff::on)) {
+    if (!setAxisParameter(ctx, id, HOMING_ACCELERATION_ADDR, gInfo.homing_acceleration_val, OnOff::on)) {
         reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : HOMING_ACCELERATION error\n", __FILENAME__, __FUNCTION__, __LINE__);
 
         return -1;
@@ -101,7 +114,7 @@ int32_t setHomingParameters(modbus_t* ctx, int32_t id, int32_t speed, int32_t of
         return -1;
     }
 
-    if (!setAxisParameter(ctx, id, Q_STOP_DECELERATION_ADDR, Q_STOP_DECELERATION_VAL, OnOff::on)) {
+    if (!setAxisParameter(ctx, id, Q_STOP_DECELERATION_ADDR, gInfo.q_stop_deceleration_val, OnOff::on)) {
         reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : Q_STOP_DECELERATION error\n", __FILENAME__, __FUNCTION__, __LINE__);
 
         return -1;
@@ -133,8 +146,8 @@ void setJogParametersMsg(std::queue<AxisMsg>* que, int32_t id, int32_t speed, in
 }
 
 int32_t setJogParameters(modbus_t* ctx, int32_t id, int32_t speed, int32_t acc, int32_t dec, int32_t s_curve, OnOff servo_lock) {
-    if (speed < JOG_MIN_SPEED_VAL) {
-        speed = JOG_MIN_SPEED_VAL;
+    if (speed < gInfo.jog_min_speed_val) {
+        speed = gInfo.jog_min_speed_val;
     }
     
     if (!setAxisParameter(ctx, id, JOG_SPEED_ADDR, speed, OnOff::on)) {
@@ -182,55 +195,55 @@ void setPosParametersMsg(std::queue<AxisMsg>* que, int32_t id) {
 }
 
 int32_t setPosParameters(modbus_t* ctx, int32_t id) {
-    if (!setAxisParameter(ctx, id, POS_CTRL_MODE_ADDR, POS_CTRL_MODE_VAL, OnOff::on)) {
+    if (!setAxisParameter(ctx, id, POS_CTRL_MODE_ADDR, gInfo.pos_ctrl_mode_val, OnOff::on)) {
         reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : POS_CTRL_MODE_ADDR error\n", __FILENAME__, __FUNCTION__, __LINE__);
 
         return -1;
     }
 
-    if (!setAxisParameter(ctx, id, POS_START_INDEX_NUMBER_ADDR, POS_START_INDEX_NUMBER_VAL, OnOff::on)) {
+    if (!setAxisParameter(ctx, id, POS_START_INDEX_NUMBER_ADDR, gInfo.pos_start_index_number_val, OnOff::on)) {
         reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : POS_START_INDEX_NUMBER_ADDR error\n", __FILENAME__, __FUNCTION__, __LINE__);
 
         return -1;
     }
 
-    if (!setAxisParameter(ctx, id, POS_INDEX_TYPE_ADDR, POS_INDEX_TYPE_VAL, OnOff::on)) {
+    if (!setAxisParameter(ctx, id, POS_INDEX_TYPE_ADDR, gInfo.pos_index_type_val, OnOff::on)) {
         reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : POS_INDEX_TYPE_ADDR error\n", __FILENAME__, __FUNCTION__, __LINE__);
 
         return -1;
     }
 
-    if (!setAxisParameter(ctx, id, POS_REG_DISTANCE_ADDR, POS_REG_DISTANCE_VAL, OnOff::on)) {
+    if (!setAxisParameter(ctx, id, POS_REG_DISTANCE_ADDR, gInfo.pos_reg_distance_val, OnOff::on)) {
         reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : POS_REG_DISTANCE_ADDR error\n", __FILENAME__, __FUNCTION__, __LINE__);
 
         return -1;
     }
 
-    if (!setAxisParameter(ctx, id, POS_REG_VELOCITY_ADDR, POS_REG_VELOCITY_VAL, OnOff::on)) {
+    if (!setAxisParameter(ctx, id, POS_REG_VELOCITY_ADDR, gInfo.pos_reg_velocity_val, OnOff::on)) {
         reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : POS_REG_VELOCITY_ADDR error\n", __FILENAME__, __FUNCTION__, __LINE__);
 
         return -1;
     }
 
-    if (!setAxisParameter(ctx, id, POS_REPEAT_COUNT_ADDR, POS_REPEAT_COUNT_VAL, OnOff::on)) {
+    if (!setAxisParameter(ctx, id, POS_REPEAT_COUNT_ADDR, gInfo.pos_repeat_count_val, OnOff::on)) {
         reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : POS_REPEAT_COUNT_ADDR error\n", __FILENAME__, __FUNCTION__, __LINE__);
 
         return -1;
     }
 
-    if (!setAxisParameter(ctx, id, POS_DWELLTIME_ADDR, POS_DWELLTIME_VAL, OnOff::on)) {
+    if (!setAxisParameter(ctx, id, POS_DWELLTIME_ADDR, gInfo.pos_dwelltime_val, OnOff::on)) {
         reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : POS_DWELLTIME_ADDR error\n", __FILENAME__, __FUNCTION__, __LINE__);
 
         return -1;
     }
 
-    if (!setAxisParameter(ctx, id, POS_NEXT_INDEX_ADDR, POS_NEXT_INDEX_VAL, OnOff::on)) {
+    if (!setAxisParameter(ctx, id, POS_NEXT_INDEX_ADDR, gInfo.pos_next_index_val, OnOff::on)) {
         reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : POS_NEXT_INDEX_ADDR error\n", __FILENAME__, __FUNCTION__, __LINE__);
 
         return -1;
     }
 
-    if (!setAxisParameter(ctx, id, POS_ACTION_ADDR, POS_ACTION_VAL, OnOff::on)) {
+    if (!setAxisParameter(ctx, id, POS_ACTION_ADDR, gInfo.pos_action_val, OnOff::on)) {
         reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : POS_ACTION_ADDR error\n", __FILENAME__, __FUNCTION__, __LINE__);
 
         return -1;
