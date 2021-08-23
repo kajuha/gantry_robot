@@ -1,0 +1,6 @@
+int32 INIT
+int32 SET
+int32 ACTION
+int32 DONE
+int32 IDLE
+int32 ERROR

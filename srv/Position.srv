@@ -1,7 +1,16 @@
+# axis 허용값
+# "x", "y", "z"
 string axis
+# 이동할 값 (mm)
 int32 position
+# 이동속도 (mm/s)
 int32 speed
+# 가속도 (mm/s^2)
 int32 acc
+# 감속도 (mm/s^2)
 int32 dec
 ---
+# 서비스에 대한 결과값
+# 정상적이면 1 리턴
+# 에러시 -1 리턴
 int32 success

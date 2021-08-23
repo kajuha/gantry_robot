@@ -1,0 +1,11 @@
+# 명령에 대한 상태머신
+# 프로그램 실행시 INIT(0x04)로 진입
+# INIT(0x04) 완료후 IDLE(0x00)로 상태 변경
+# ERROR(0x05) 의 경우 Info의 Error에서 isError 설정됨
+# INIT = 4 만 허용됨
+int32 command
+---
+# 서비스에 대한 결과값
+# 정상적이면 1 리턴
+# 에러시 -1 리턴
+int32 success

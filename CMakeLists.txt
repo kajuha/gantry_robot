@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   serial
   std_msgs
+  yapper
 )
 
 ## System dependencies are found with CMake's conventions
@@ -60,6 +61,10 @@ add_message_files(
   Status.msg
   InfoAxis.msg
   Info.msg
+  StateCommand.msg
+  StateFunction.msg
+  State.msg
+  Error.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -72,6 +77,7 @@ add_service_files(
   FILES
   Position.srv
   Homing.srv
+  Command.srv
 )
 
 ## Generate actions in the 'action' folder

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <gantry_robot/Status.h>
+#include <gantry_robot/State.h>
 
 #include <modbus.h>
 #include <queue>
@@ -45,12 +46,16 @@
 #define READ_REG_SIZE   0x10
 #define WRITE_COIL_SIZE 0x20
 
-enum class CommandCase {
-	IDLE, HOME, JOG, POSITION, INIT, ERROR
+enum class CommandState {
+	INIT, HOME, POSITION, JOG, IDLE, ERROR
 };
 
-enum class FunctionCase {
+enum class FunctionState {
 	INIT, SET, ACTION, DONE, IDLE, ERROR
+};
+
+enum class InitState {
+    HOME_SET, HOME_ACTION, POSITION_SET, POSITION_ACTION, JOG_SET, JOG_ACTION, IDLE
 };
 
 enum class OnOff {
@@ -96,6 +101,14 @@ public:
 
     std::string serial_port;
     int32_t baud_rate;
+
+    // ERROR
+    int32_t isError;
+    std::string errorMessage;
+
+    // STATE
+	CommandState cmdState;
+	FunctionState funcState;
     
     int32_t axis_x_num;
     int32_t axis_y_num;

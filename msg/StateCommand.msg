@@ -1,0 +1,6 @@
+int32 IDLE
+int32 HOME
+int32 JOG
+int32 POSITION
+int32 INIT
+int32 ERROR
