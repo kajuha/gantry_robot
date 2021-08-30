@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string.h>
+#include <math.h>
 
 extern GlobalInfo gInfo;
 
@@ -11,6 +12,11 @@ enum class ModbusLoopState {
 enum class ScreenOutput {
     NO, DEFAULT, ALWAYS, TEMP, ERROR
 };
+
+#define RAD_TO_DEG(X)   (X*(180.0/M_PI))
+#define DEG_TO_RAD(X)   (X*(M_PI/180.0))
+#define MM_TO_M(X)      (X/1000.0)
+#define M_TO_MM(X)      (X*1000.0)
 
 #define TS_ELAPSE_ERROR 10
 

@@ -1,6 +1,13 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(gantry_robot)
 
+set(YAPPER_ENABLE TRUE)
+if(${YAPPER_ENABLE})
+  message("YAPPER ENABLE")
+  set(YAPP yapper)
+  add_definitions(-DYAPPER_ENABLE)
+endif()
+
 ## Compile as C++11, supported in ROS Kinetic and newer
 add_compile_options(-std=c++11)
 
@@ -10,9 +17,8 @@ add_compile_options(-std=c++11)
 find_package(catkin REQUIRED COMPONENTS
   message_generation
   roscpp
-  serial
   std_msgs
-  yapper
+  ${YAPP}
 )
 
 ## System dependencies are found with CMake's conventions
@@ -78,6 +84,7 @@ add_service_files(
   Position.srv
   Homing.srv
   Command.srv
+  Location.srv
 )
 
 ## Generate actions in the 'action' folder

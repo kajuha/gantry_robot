@@ -1,63 +1,104 @@
 <launch>
   <arg name="message_display" default="screen" doc="output type"/>
+  <arg name="node_name" default="gantry_robot" doc="node name"/>
+  <arg name="serial_port" doc="serial port"/>
+    
+  <arg name="axis_x_num" doc="axis_x_num"/>
+  <arg name="axis_y_num" doc="axis_y_num"/>
+  <arg name="axis_z_num" doc="axis_z_num"/>
+
+  <arg name="enc_pulse_per_rev_axis_x" doc="enc_pulse_per_rev_axis_x"/>
+  <arg name="enc_pulse_per_rev_axis_y" doc="enc_pulse_per_rev_axis_y"/>
+  <arg name="enc_pulse_per_rev_axis_z" doc="enc_pulse_per_rev_axis_z"/>
+  <arg name="stage_max_mm_axis_x" doc="stage_max_mm_axis_x"/>
+  <arg name="stage_max_mm_axis_y" doc="stage_max_mm_axis_y"/>
+  <arg name="stage_max_mm_axis_z" doc="stage_max_mm_axis_z"/>
+  <arg name="stage_mm_per_rev_axis_x" doc="stage_mm_per_rev_axis_x"/>
+  <arg name="stage_mm_per_rev_axis_y" doc="stage_mm_per_rev_axis_y"/>
+  <arg name="stage_mm_per_rev_axis_z" doc="stage_mm_per_rev_axis_z"/>
+  <arg name="ratio_gear_axis_x" doc="ratio_gear_axis_x"/>
+  <arg name="ratio_gear_axis_y" doc="ratio_gear_axis_y"/>
+  <arg name="ratio_gear_axis_z" doc="ratio_gear_axis_z"/>
+  <arg name="ratio_shaft_axis_x" doc="ratio_shaft_axis_x"/>
+  <arg name="ratio_shaft_axis_y" doc="ratio_shaft_axis_y"/>
+  <arg name="ratio_shaft_axis_z" doc="ratio_shaft_axis_z"/>
+
+  <arg name="homing_method_val" doc="homing_method_val"/>
+  <arg name="homing_min_speed_val" doc="homing_min_speed_val"/>
+  <arg name="homing_speed_x_val" doc="homing_speed_x_val"/>
+  <arg name="homing_speed_y_val" doc="homing_speed_y_val"/>
+  <arg name="homing_speed_z_val" doc="homing_speed_z_val"/>
+  <arg name="homing_acceleration_val" doc="homing_acceleration_val"/>
+  <arg name="homing_offset_x_val" doc="homing_offset_x_val"/>
+  <arg name="homing_offset_y_val" doc="homing_offset_y_val"/>
+  <arg name="homing_offset_z_val" doc="homing_offset_z_val"/>
+  <arg name="homing_done_behaviour_x_val" doc="homing_done_behaviour_x_val"/>
+  <arg name="homing_done_behaviour_y_val" doc="homing_done_behaviour_y_val"/>
+  <arg name="homing_done_behaviour_z_val" doc="homing_done_behaviour_z_val"/>
+
+  <arg name="pos_speed_val" doc="pos_speed_val"/>
+  <arg name="pos_acc_dec_val" doc="pos_acc_dec_val"/>
   
   <node pkg="gantry_robot" type="gantry_robot" name="gantry_robot" output="$(arg message_display)">
-    <param name="node_name" value="gantry_robot" />
+    <param name="node_name" value="$(arg node_name)"/>
 
-    <param name="serial_port" value="/dev/ttyUSB0" />
-    <param name="baud_rate" value="57600" />
+    <param name="serial_port" value="$(arg serial_port)"/>
+    <param name="baud_rate" value="57600"/>
     
-    <param name="axis_x_num" value="11" />
-    <param name="axis_y_num" value="12" />
-    <param name="axis_z_num" value="13" />
+    <param name="axis_x_num" value="$(arg axis_x_num)"/>
+    <param name="axis_y_num" value="$(arg axis_y_num)"/>
+    <param name="axis_z_num" value="$(arg axis_z_num)"/>
 
-    <param name="encoder_ppr_axis_x" value="524288" />
-    <param name="encoder_ppr_axis_y" value="524288" />
-    <param name="encoder_ppr_axis_z" value="262144" />
-    <param name="stage_max_axis_x" value="500" />
-    <param name="stage_max_axis_y" value="500" />
-    <param name="stage_max_axis_z" value="500" />
-    <param name="stage_lead_axis_x" value="24" />
-    <param name="stage_lead_axis_y" value="25" />
-    <param name="stage_lead_axis_z" value="20" />
-    <param name="ratio_gear_axis_x" value="64" />
-    <param name="ratio_gear_axis_y" value="64" />
-    <param name="ratio_gear_axis_z" value="64" />
-    <param name="ratio_shaft_axis_x" value="1" />
-    <param name="ratio_shaft_axis_y" value="1" />
-    <param name="ratio_shaft_axis_z" value="1" />
+    <param name="enc_pulse_per_rev_axis_x" value="$(arg enc_pulse_per_rev_axis_x)"/>
+    <param name="enc_pulse_per_rev_axis_y" value="$(arg enc_pulse_per_rev_axis_y)"/>
+    <param name="enc_pulse_per_rev_axis_z" value="$(arg enc_pulse_per_rev_axis_z)"/>
+    <param name="stage_max_mm_axis_x" value="$(arg stage_max_mm_axis_x)"/>
+    <param name="stage_max_mm_axis_y" value="$(arg stage_max_mm_axis_y)"/>
+    <param name="stage_max_mm_axis_z" value="$(arg stage_max_mm_axis_z)"/>
+    <param name="stage_mm_per_rev_axis_x" value="$(arg stage_mm_per_rev_axis_x)"/>
+    <param name="stage_mm_per_rev_axis_y" value="$(arg stage_mm_per_rev_axis_y)"/>
+    <param name="stage_mm_per_rev_axis_z" value="$(arg stage_mm_per_rev_axis_z)"/>
+    <param name="ratio_gear_axis_x" value="$(arg ratio_gear_axis_x)"/>
+    <param name="ratio_gear_axis_y" value="$(arg ratio_gear_axis_y)"/>
+    <param name="ratio_gear_axis_z" value="$(arg ratio_gear_axis_z)"/>
+    <param name="ratio_shaft_axis_x" value="$(arg ratio_shaft_axis_x)"/>
+    <param name="ratio_shaft_axis_y" value="$(arg ratio_shaft_axis_y)"/>
+    <param name="ratio_shaft_axis_z" value="$(arg ratio_shaft_axis_z)"/>
 
-    <param name="q_stop_deceleration_val" value="10000" />
+    <param name="q_stop_deceleration_val" value="10000"/>
     
-    <param name="homing_method_val" value="24" />
-    <param name="homing_min_speed_val" value="5000" />
-    <param name="homing_speed_x_val" value="5000" />
-    <param name="homing_speed_y_val" value="5000" />
-    <param name="homing_speed_z_val" value="5000" />
-    <param name="homing_acceleration_val" value="10000 " />
-    <param name="homing_offset_x_val" value="0" />
-    <param name="homing_offset_y_val" value="5160" />
-    <param name="homing_offset_z_val" value="8097" />
-    <param name="homing_done_behaviour_x_val" value="0" />
-    <param name="homing_done_behaviour_y_val" value="1" />
-    <param name="homing_done_behaviour_z_val" value="1" />
+    <param name="homing_method_val" value="$(arg homing_method_val)"/>
+    <param name="homing_min_speed_val" value="$(arg homing_min_speed_val)"/>
+    <param name="homing_speed_x_val" value="$(arg homing_speed_x_val)"/>
+    <param name="homing_speed_y_val" value="$(arg homing_speed_y_val)"/>
+    <param name="homing_speed_z_val" value="$(arg homing_speed_z_val)"/>
+    <param name="homing_acceleration_val" value="$(arg homing_acceleration_val)"/>
+    <param name="homing_offset_x_val" value="$(arg homing_offset_x_val)"/>
+    <param name="homing_offset_y_val" value="$(arg homing_offset_y_val)"/>
+    <param name="homing_offset_z_val" value="$(arg homing_offset_z_val)"/>
+    <param name="homing_done_behaviour_x_val" value="$(arg homing_done_behaviour_x_val)"/>
+    <param name="homing_done_behaviour_y_val" value="$(arg homing_done_behaviour_y_val)"/>
+    <param name="homing_done_behaviour_z_val" value="$(arg homing_done_behaviour_z_val)"/>
 
-    <param name="jog_min_speed_val" value="100" />
-    <param name="jog_speed_val" value="100" />
-    <param name="jog_acceleration_val" value="20" />
-    <param name="jog_deceleration_val" value="20" />
-    <param name="jog_s_curve_val" value="0" />
-    <param name="jog_servo_lock_val" value="0" />
+    <param name="jog_min_speed_val" value="100"/>
+    <param name="jog_speed_val" value="100"/>
+    <param name="jog_acceleration_val" value="20"/>
+    <param name="jog_deceleration_val" value="20"/>
+    <param name="jog_s_curve_val" value="0"/>
+    <param name="jog_servo_lock_val" value="0"/>
 
-    <param name="pos_ctrl_mode_val" value="0" />
-    <param name="pos_start_index_number_val" value="0" />
-    <param name="pos_index_type_val" value="0" />
-    <param name="pos_reg_distance_val" value="0" />
-    <param name="pos_reg_velocity_val" value="1" />
-    <param name="pos_repeat_count_val" value="1" />
-    <param name="pos_dwelltime_val" value="0" />
-    <param name="pos_next_index_val" value="0" />
-    <param name="pos_action_val" value="0" />
+    <param name="pos_ctrl_mode_val" value="0"/>
+    <param name="pos_start_index_number_val" value="0"/>
+    <param name="pos_index_type_val" value="0"/>
+    <param name="pos_reg_distance_val" value="0"/>
+    <param name="pos_reg_velocity_val" value="1"/>
+    <param name="pos_repeat_count_val" value="1"/>
+    <param name="pos_dwelltime_val" value="0"/>
+    <param name="pos_next_index_val" value="0"/>
+    <param name="pos_action_val" value="0"/>
+
+    <param name="pos_speed_val" value="$(arg pos_speed_val)"/>
+    <param name="pos_acc_dec_val" value="$(arg pos_acc_dec_val)"/>
 
   </node>
 </launch>

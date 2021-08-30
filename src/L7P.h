@@ -1,7 +1,6 @@
 #pragma once
 
-#include <gantry_robot/Status.h>
-#include <gantry_robot/State.h>
+#include <gantry_robot/Info.h>
 
 #include <modbus.h>
 #include <queue>
@@ -47,7 +46,7 @@
 #define WRITE_COIL_SIZE 0x20
 
 enum class CommandState {
-	INIT, HOME, POSITION, JOG, IDLE, ERROR
+	INIT, HOME, POSITION, JOG, STOP, IDLE, ERROR
 };
 
 enum class FunctionState {
@@ -115,21 +114,21 @@ public:
     int32_t axis_z_num;
 
     // GENERAL INFO
-    int32_t encoder_ppr_axis_x;
-    int32_t encoder_ppr_axis_y;
-    int32_t encoder_ppr_axis_z;
-    int32_t stage_max_axis_x;
-    int32_t stage_max_axis_y;
-    int32_t stage_max_axis_z;
-    int32_t stage_lead_axis_x;
-    int32_t stage_lead_axis_y;
-    int32_t stage_lead_axis_z;
-    int32_t ratio_gear_axis_x;
-    int32_t ratio_gear_axis_y;
-    int32_t ratio_gear_axis_z;
-    int32_t ratio_shaft_axis_x;
-    int32_t ratio_shaft_axis_y;
-    int32_t ratio_shaft_axis_z;
+    double enc_pulse_per_rev_axis_x;
+    double enc_pulse_per_rev_axis_y;
+    double enc_pulse_per_rev_axis_z;
+    double stage_max_mm_axis_x;
+    double stage_max_mm_axis_y;
+    double stage_max_mm_axis_z;
+    double stage_mm_per_rev_axis_x;
+    double stage_mm_per_rev_axis_y;
+    double stage_mm_per_rev_axis_z;
+    double ratio_gear_axis_x;
+    double ratio_gear_axis_y;
+    double ratio_gear_axis_z;
+    double ratio_shaft_axis_x;
+    double ratio_shaft_axis_y;
+    double ratio_shaft_axis_z;
 
     // GENERAL DEFAULT
     int32_t q_stop_deceleration_val;
@@ -166,21 +165,24 @@ public:
     int32_t pos_dwelltime_val;
     int32_t pos_next_index_val;
     int32_t pos_action_val;
+    double pos_speed_val;
+    double pos_acc_dec_val;
 };
 
 int32_t axisToId(std::string axis);
+double encToUU(int32_t axis_id, int32_t encoder);
 
-void setAxisCommandMsg(std::queue<AxisMsg>* que, int32_t id, AxisCommand axisCommand, OnOff onOff);
+void setAxisCommandMsg(std::queue<AxisMsg>* queueModbus, int32_t id, AxisCommand axisCommand, OnOff onOff);
 int32_t setAxisCommand(modbus_t* ctx, int32_t id, AxisCommand axisCommand, OnOff onOff);
-int32_t getAxisStatus(modbus_t* ctx, int32_t id, gantry_robot::Status* status);
+int32_t getAxisStatus(modbus_t* ctx, int32_t id, gantry_robot::InfoAxis* infoAxis);
 
-void setHomingParametersMsg(std::queue<AxisMsg>* que, int32_t id, int32_t speed, int32_t offset, OnOff done_behaviour);
+void setHomingParametersMsg(std::queue<AxisMsg>* queueModbus, int32_t id, int32_t speed, int32_t offset, OnOff done_behaviour);
 int32_t setHomingParameters(modbus_t* ctx, int32_t id, int32_t speed, int32_t offset, OnOff done_behaviour);
 
-void setJogParametersMsg(std::queue<AxisMsg>* que, int32_t id, int32_t speed, int32_t acc, int32_t dec, int32_t s_curve, OnOff servo_lock);
+void setJogParametersMsg(std::queue<AxisMsg>* queueModbus, int32_t id, int32_t speed, int32_t acc, int32_t dec, int32_t s_curve, OnOff servo_lock);
 int32_t setJogParameters(modbus_t* ctx, int32_t id, int32_t speed, int32_t acc, int32_t dec, int32_t s_curve, OnOff servo_lock);
 
-void setPosParametersMsg(std::queue<AxisMsg>* que, int32_t id);
+void setPosParametersMsg(std::queue<AxisMsg>* queueModbus, int32_t id);
 int32_t setPosParameters(modbus_t* ctx, int32_t id);
-void setPositionMsg(std::queue<AxisMsg>* que, int32_t id, int32_t position, int32_t speed, int32_t acc, int32_t dec);
+void setPositionMsg(std::queue<AxisMsg>* queueModbus, int32_t id, int32_t position, int32_t speed, int32_t acc, int32_t dec);
 int32_t setPosition(modbus_t* ctx, int32_t id, int32_t position, int32_t speed, int32_t acc, int32_t dec);

@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <queue>
 
-#include <gantry_robot/Status.h>
+#include <gantry_robot/Info.h>
 
 #include "L7P.h"
 #include "ObjectDictionary.h"
@@ -22,7 +22,35 @@ int32_t axisToId(std::string axis) {
     }
 }
 
-void setAxisCommandMsg(std::queue<AxisMsg>* que, int32_t id, AxisCommand axisCommand, OnOff onOff) {
+double encToUU(int32_t axis_id, int32_t encoder) {
+    static double location = 0.0;
+
+    if (gInfo.node_name == "serial_robot") {
+        if (axis_id == gInfo.axis_x_num) {
+            location = encoder * ((DEG_TO_RAD(gInfo.stage_mm_per_rev_axis_x) * gInfo.ratio_shaft_axis_x)/(gInfo.enc_pulse_per_rev_axis_x * gInfo.ratio_gear_axis_x));
+        } else if (axis_id == gInfo.axis_y_num) {
+            location = encoder * ((DEG_TO_RAD(gInfo.stage_mm_per_rev_axis_y) * gInfo.ratio_shaft_axis_y)/(gInfo.enc_pulse_per_rev_axis_y * gInfo.ratio_gear_axis_y));
+        } else if (axis_id == gInfo.axis_z_num) {
+            location = encoder * ((DEG_TO_RAD(gInfo.stage_mm_per_rev_axis_z) * gInfo.ratio_shaft_axis_z)/(gInfo.enc_pulse_per_rev_axis_z * gInfo.ratio_gear_axis_z));
+        } else {
+        }
+        location = RAD_TO_DEG(location);
+    } else {
+        if (axis_id == gInfo.axis_x_num) {
+            location = encoder * ((gInfo.stage_mm_per_rev_axis_x * gInfo.ratio_shaft_axis_x)/(gInfo.enc_pulse_per_rev_axis_x * gInfo.ratio_gear_axis_x));
+        } else if (axis_id == gInfo.axis_y_num) {
+            location = encoder * ((gInfo.stage_mm_per_rev_axis_y * gInfo.ratio_shaft_axis_y)/(gInfo.enc_pulse_per_rev_axis_y * gInfo.ratio_gear_axis_y));
+        } else if (axis_id == gInfo.axis_z_num) {
+            location = encoder * ((gInfo.stage_mm_per_rev_axis_z * gInfo.ratio_shaft_axis_z)/(gInfo.enc_pulse_per_rev_axis_z * gInfo.ratio_gear_axis_z));
+        } else {
+        }
+        location = MM_TO_M(location);
+    }
+
+    return location;
+}
+
+void setAxisCommandMsg(std::queue<AxisMsg>* queueModbus, int32_t id, AxisCommand axisCommand, OnOff onOff) {
     static AxisMsg axisMsg;
 
 	axisMsg.type = CommandType::setCommand;
@@ -31,7 +59,7 @@ void setAxisCommandMsg(std::queue<AxisMsg>* que, int32_t id, AxisCommand axisCom
 	axisMsg.axisCommand = axisCommand;
 	axisMsg.onOff = onOff;
 
-	que->push(axisMsg);
+	queueModbus->push(axisMsg);
 }
 
 int32_t setAxisCommand(modbus_t* ctx, int32_t id, AxisCommand axisCommand, OnOff onOff) {
@@ -49,7 +77,7 @@ int32_t setAxisCommand(modbus_t* ctx, int32_t id, AxisCommand axisCommand, OnOff
     return ret;
 }
 
-int32_t getAxisStatus(modbus_t* ctx, int32_t id, gantry_robot::Status* status) {
+int32_t getAxisStatus(modbus_t* ctx, int32_t id, gantry_robot::InfoAxis* infoAxis) {
     static uint8_t read_bits[READ_COIL_SIZE] = {0, };
     static int32_t ret = 0;
 
@@ -60,13 +88,19 @@ int32_t getAxisStatus(modbus_t* ctx, int32_t id, gantry_robot::Status* status) {
         return -1;
     } else {
         ret = modbus_read_bits(ctx, READ_COIL_ADDR, READ_COIL_SIZE, read_bits);
-        memcpy((uint8_t*)status, read_bits, sizeof(read_bits));
+        memcpy((uint8_t*)&(infoAxis->status), read_bits, sizeof(read_bits));
+        infoAxis->alarm = infoAxis->status.output.alarm;
+        infoAxis->ready = infoAxis->status.output.ready;
+        infoAxis->inpos1 = infoAxis->status.output.inpos1;
+        infoAxis->inspd = infoAxis->status.output.inspd;
+        infoAxis->org = infoAxis->status.output.org;
+        infoAxis->eos = infoAxis->status.output.eos;
     }
 
     return ret;
 }
 
-void setHomingParametersMsg(std::queue<AxisMsg>* que, int32_t id, int32_t speed, int32_t offset, OnOff done_behaviour) {
+void setHomingParametersMsg(std::queue<AxisMsg>* queueModbus, int32_t id, int32_t speed, int32_t offset, OnOff done_behaviour) {
     static AxisMsg axisMsg;
 
 	axisMsg.type = CommandType::setHomingParameters;
@@ -76,7 +110,7 @@ void setHomingParametersMsg(std::queue<AxisMsg>* que, int32_t id, int32_t speed,
 	axisMsg.offset = offset;
 	axisMsg.done_behaviour = done_behaviour;
 
-	que->push(axisMsg);
+	queueModbus->push(axisMsg);
 }
 
 int32_t setHomingParameters(modbus_t* ctx, int32_t id, int32_t speed, int32_t offset, OnOff done_behaviour) {
@@ -130,7 +164,7 @@ int32_t setHomingParameters(modbus_t* ctx, int32_t id, int32_t speed, int32_t of
     return 1;
 }
 
-void setJogParametersMsg(std::queue<AxisMsg>* que, int32_t id, int32_t speed, int32_t acc, int32_t dec, int32_t s_curve, OnOff servo_lock) {
+void setJogParametersMsg(std::queue<AxisMsg>* queueModbus, int32_t id, int32_t speed, int32_t acc, int32_t dec, int32_t s_curve, OnOff servo_lock) {
     static AxisMsg axisMsg;
 
 	axisMsg.type = CommandType::setJogParameters;
@@ -142,7 +176,7 @@ void setJogParametersMsg(std::queue<AxisMsg>* que, int32_t id, int32_t speed, in
 	axisMsg.s_curve = s_curve;
 	axisMsg.servo_lock = servo_lock;
 
-	que->push(axisMsg);
+	queueModbus->push(axisMsg);
 }
 
 int32_t setJogParameters(modbus_t* ctx, int32_t id, int32_t speed, int32_t acc, int32_t dec, int32_t s_curve, OnOff servo_lock) {
@@ -184,14 +218,14 @@ int32_t setJogParameters(modbus_t* ctx, int32_t id, int32_t speed, int32_t acc, 
     return 1;
 }
 
-void setPosParametersMsg(std::queue<AxisMsg>* que, int32_t id) {
+void setPosParametersMsg(std::queue<AxisMsg>* queueModbus, int32_t id) {
     static AxisMsg axisMsg;
 
 	axisMsg.type = CommandType::setPosParameters;
 
 	axisMsg.id = id;
 
-	que->push(axisMsg);
+	queueModbus->push(axisMsg);
 }
 
 int32_t setPosParameters(modbus_t* ctx, int32_t id) {
@@ -277,7 +311,7 @@ int32_t setPosParameters(modbus_t* ctx, int32_t id) {
     return 1;
 }
 
-void setPositionMsg(std::queue<AxisMsg>* que, int32_t id, int32_t position, int32_t speed, int32_t acc, int32_t dec) {
+void setPositionMsg(std::queue<AxisMsg>* queueModbus, int32_t id, int32_t position, int32_t speed, int32_t acc, int32_t dec) {
     static AxisMsg axisMsg;
 
 	axisMsg.type = CommandType::setPosition;
@@ -288,7 +322,7 @@ void setPositionMsg(std::queue<AxisMsg>* que, int32_t id, int32_t position, int3
     axisMsg.acc = acc;
     axisMsg.dec = dec;
 
-	que->push(axisMsg);
+	queueModbus->push(axisMsg);
 }
 
 int32_t setPosition(modbus_t* ctx, int32_t id, int32_t position, int32_t speed, int32_t acc, int32_t dec) {

@@ -1,0 +1,44 @@
+<launch>
+	<include file="$(find gantry_robot)/launch/base.launch">
+    <arg name="message_display" value="screen"/>
+    <arg name="node_name" value="gantry_robot"/>
+
+    <arg name="serial_port" value="/dev/ttyUSB0" />
+  
+    <arg name="axis_x_num" value="11" />
+    <arg name="axis_y_num" value="12" />
+    <arg name="axis_z_num" value="13" />
+
+    <arg name="enc_pulse_per_rev_axis_x" value="524288" />
+    <arg name="enc_pulse_per_rev_axis_y" value="524288" />
+    <arg name="enc_pulse_per_rev_axis_z" value="262144" />
+    <arg name="stage_max_mm_axis_x" value="1100" />
+    <arg name="stage_max_mm_axis_y" value="600" />
+    <arg name="stage_max_mm_axis_z" value="600" />
+    <arg name="stage_mm_per_rev_axis_x" value="24" />
+    <arg name="stage_mm_per_rev_axis_y" value="25" />
+    <arg name="stage_mm_per_rev_axis_z" value="20" />
+    <arg name="ratio_gear_axis_x" value="5" />
+    <arg name="ratio_gear_axis_y" value="3" />
+    <arg name="ratio_gear_axis_z" value="1" />
+    <arg name="ratio_shaft_axis_x" value="1" />
+    <arg name="ratio_shaft_axis_y" value="1" />
+    <arg name="ratio_shaft_axis_z" value="1" />
+    
+    <arg name="homing_method_val" value="28"/>
+    <arg name="homing_min_speed_val" value="50000"/>
+    <arg name="homing_speed_x_val" value="50000"/>
+    <arg name="homing_speed_y_val" value="50000"/>
+    <arg name="homing_speed_z_val" value="50000"/>
+    <arg name="homing_acceleration_val" value="100000"/>
+    <arg name="homing_offset_x_val" value="0"/>
+    <arg name="homing_offset_y_val" value="0"/>
+    <arg name="homing_offset_z_val" value="0"/>
+    <arg name="homing_done_behaviour_x_val" value="0"/>
+    <arg name="homing_done_behaviour_y_val" value="0"/>
+    <arg name="homing_done_behaviour_z_val" value="0"/>
+
+    <arg name="pos_speed_val" value="0.1"/> <!-- 단위: m/s -->
+    <arg name="pos_acc_dec_val" value="1"/> <!-- 단위: m/s^2 -->
+	</include>
+</launch>
