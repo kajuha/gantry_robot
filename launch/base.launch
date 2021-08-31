@@ -38,6 +38,9 @@
 
   <arg name="pos_speed_val" doc="pos_speed_val"/>
   <arg name="pos_acc_dec_val" doc="pos_acc_dec_val"/>
+
+  <arg name="srv_timeout_sec" doc="srv_timeout_sec"/>
+  <arg name="location_tolerance" doc="location_tolerance"/>
   
   <node pkg="gantry_robot" type="gantry_robot" name="gantry_robot" output="$(arg message_display)">
     <param name="node_name" value="$(arg node_name)"/>
@@ -100,5 +103,7 @@
     <param name="pos_speed_val" value="$(arg pos_speed_val)"/>
     <param name="pos_acc_dec_val" value="$(arg pos_acc_dec_val)"/>
 
+    <param name="srv_timeout_sec" value="$(arg srv_timeout_sec)"/>
+    <param name="location_tolerance" value="$(arg location_tolerance)"/>
   </node>
 </launch>

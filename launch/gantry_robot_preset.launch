@@ -41,5 +41,8 @@
 
     <arg name="pos_speed_val" value="0.1"/> <!-- 단위: m/s -->
     <arg name="pos_acc_dec_val" value="1"/> <!-- 단위: m/s^2 -->
+
+    <arg name="srv_timeout_sec" value="60.0"/>
+    <arg name="location_tolerance" value="1.0"/> <!-- 단위: mm -->
 	</include>
 </launch>

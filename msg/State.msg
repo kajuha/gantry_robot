@@ -2,3 +2,5 @@ int32 cmdState
 int32 funcState
 StateCommand cmdStateDetail
 StateFunction funcStateDetail
+string cmdStateString
+string funcStateString

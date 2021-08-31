@@ -1,6 +1,8 @@
 #pragma once
 
 #include <gantry_robot/Info.h>
+#include <gantry_robot/Location.h>
+#include <gantry_robot/Command.h>
 
 #include <modbus.h>
 #include <queue>
@@ -45,8 +47,12 @@
 #define READ_REG_SIZE   0x10
 #define WRITE_COIL_SIZE 0x20
 
+enum class AxisState {
+    X, Y, Z, YZ
+};
+
 enum class CommandState {
-	INIT, HOME, POSITION, JOG, STOP, IDLE, ERROR
+	INIT, HOME, LOCATION, POSITION, JOG, STOP, IDLE, ERROR
 };
 
 enum class FunctionState {
@@ -100,6 +106,20 @@ public:
 
     std::string serial_port;
     int32_t baud_rate;
+
+    // service timeout
+    double srv_timeout_sec; // sec
+    double location_tolerance;  // mm
+
+    // service command
+    gantry_robot::Command::Request command_req;
+    gantry_robot::Command::Response command_res;
+    int32_t command_done;
+
+    // service location
+    gantry_robot::Location::Request location_req;
+    gantry_robot::Location::Response location_res;
+    int32_t location_done;
 
     // ERROR
     int32_t isError;

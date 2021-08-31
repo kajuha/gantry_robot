@@ -1,4 +1,6 @@
 #include <ros/ros.h>
+#include <thread>
+#include <ros/callback_queue.h>
 #include <unistd.h>
 #include <pthread.h>
 #include <semaphore.h>
@@ -16,11 +18,13 @@
 #include <gantry_robot/Command.h>
 #ifdef YAPPER_ENABLE
 #include <yapper/YapIn.h>
+#include "yapper.h"
 #endif
 
 #include "L7P.h"
 #include "ObjectDictionary.h"
 #include "main.h"
+#include "deprecated.h"
 
 std::queue<AxisMsg> queueModbus;
 std::queue<CommandState> queueCommandState;
@@ -28,165 +32,22 @@ std::queue<CommandState> queueCommandState;
 gantry_robot::Info info;
 GlobalInfo gInfo;
 
-void setState();
-
-bool servicePositionCallback(gantry_robot::Position::Request &req, gantry_robot::Position::Response &res) {
-    ros::Time time = ros::Time::now();
-
-	std::string axis = req.axis;
-	std::transform(axis.begin(), axis.end(), axis.begin(), ::tolower);
-	static double position, speed, acc, dec;
-
-	if (axis == "x" || axis == "y" || axis == "z") {
-		if (gInfo.node_name == "serial_robot") {
-			reprintf(ScreenOutput::ALWAYS, "serial_robot pre: %lf %lf %lf %lf\n", req.position, req.speed, req.acc, req.dec);
-			position = DEG_TO_RAD(req.position);
-			speed = DEG_TO_RAD(req.speed);
-			acc = DEG_TO_RAD(req.acc);
-			dec = DEG_TO_RAD(req.dec);
-			reprintf(ScreenOutput::ALWAYS, "serial_robot mid: %lf %lf %lf %lf\n", position, speed, acc, dec);
-
-			if (axis == "x") {
-				position = position * ((gInfo.enc_pulse_per_rev_axis_x * gInfo.ratio_gear_axis_x)/(DEG_TO_RAD(gInfo.stage_mm_per_rev_axis_x) * gInfo.ratio_shaft_axis_x));
-				speed = speed * ((gInfo.enc_pulse_per_rev_axis_x * gInfo.ratio_gear_axis_x)/(DEG_TO_RAD(gInfo.stage_mm_per_rev_axis_x) * gInfo.ratio_shaft_axis_x));;
-				acc = acc * ((gInfo.enc_pulse_per_rev_axis_x * gInfo.ratio_gear_axis_x)/(DEG_TO_RAD(gInfo.stage_mm_per_rev_axis_x) * gInfo.ratio_shaft_axis_x));;
-				dec = dec * ((gInfo.enc_pulse_per_rev_axis_x * gInfo.ratio_gear_axis_x)/(DEG_TO_RAD(gInfo.stage_mm_per_rev_axis_x) * gInfo.ratio_shaft_axis_x));;
-			} else if (axis == "y") {
-				position = position * ((gInfo.enc_pulse_per_rev_axis_y * gInfo.ratio_gear_axis_y)/(DEG_TO_RAD(gInfo.stage_mm_per_rev_axis_y) * gInfo.ratio_shaft_axis_y));
-				speed = speed * ((gInfo.enc_pulse_per_rev_axis_y * gInfo.ratio_gear_axis_y)/(DEG_TO_RAD(gInfo.stage_mm_per_rev_axis_y) * gInfo.ratio_shaft_axis_y));;
-				acc = acc * ((gInfo.enc_pulse_per_rev_axis_y * gInfo.ratio_gear_axis_y)/(DEG_TO_RAD(gInfo.stage_mm_per_rev_axis_y) * gInfo.ratio_shaft_axis_y));;
-				dec = dec * ((gInfo.enc_pulse_per_rev_axis_y * gInfo.ratio_gear_axis_y)/(DEG_TO_RAD(gInfo.stage_mm_per_rev_axis_y) * gInfo.ratio_shaft_axis_y));;
-			} else if (axis == "z") {
-				position = position * ((gInfo.enc_pulse_per_rev_axis_z * gInfo.ratio_gear_axis_z)/(DEG_TO_RAD(gInfo.stage_mm_per_rev_axis_z) * gInfo.ratio_shaft_axis_z));
-				speed = speed * ((gInfo.enc_pulse_per_rev_axis_z * gInfo.ratio_gear_axis_z)/(DEG_TO_RAD(gInfo.stage_mm_per_rev_axis_z) * gInfo.ratio_shaft_axis_z));;
-				acc = acc * ((gInfo.enc_pulse_per_rev_axis_z * gInfo.ratio_gear_axis_z)/(DEG_TO_RAD(gInfo.stage_mm_per_rev_axis_z) * gInfo.ratio_shaft_axis_z));;
-				dec = dec * ((gInfo.enc_pulse_per_rev_axis_z * gInfo.ratio_gear_axis_z)/(DEG_TO_RAD(gInfo.stage_mm_per_rev_axis_z) * gInfo.ratio_shaft_axis_z));;
-			} else {
-				res.success = SRV_FAIL;
-
-				return true;
-			}
-			reprintf(ScreenOutput::ALWAYS, "serial_robot post: %lf %lf %lf %lf\n", position, speed, acc, dec);
-		} else {
-			reprintf(ScreenOutput::ALWAYS, "gantry_robot pre: %lf %lf %lf %lf\n", req.position, req.speed, req.acc, req.dec);
-			position = M_TO_MM(req.position);
-			speed = M_TO_MM(req.speed);
-			acc = M_TO_MM(req.acc);
-			dec = M_TO_MM(req.dec);
-			reprintf(ScreenOutput::ALWAYS, "gantry_robot mid: %lf %lf %lf %lf\n", position, speed, acc, dec);
-
-			if (axis == "x") {
-				position = position * ((gInfo.enc_pulse_per_rev_axis_x * gInfo.ratio_gear_axis_x)/(gInfo.stage_mm_per_rev_axis_x * gInfo.ratio_shaft_axis_x));
-				speed = speed * ((gInfo.enc_pulse_per_rev_axis_x * gInfo.ratio_gear_axis_x)/(gInfo.stage_mm_per_rev_axis_x * gInfo.ratio_shaft_axis_x));;
-				acc = acc * ((gInfo.enc_pulse_per_rev_axis_x * gInfo.ratio_gear_axis_x)/(gInfo.stage_mm_per_rev_axis_x * gInfo.ratio_shaft_axis_x));;
-				dec = dec * ((gInfo.enc_pulse_per_rev_axis_x * gInfo.ratio_gear_axis_x)/(gInfo.stage_mm_per_rev_axis_x * gInfo.ratio_shaft_axis_x));;
-			} else if (axis == "y") {
-				position = position * ((gInfo.enc_pulse_per_rev_axis_y * gInfo.ratio_gear_axis_y)/(gInfo.stage_mm_per_rev_axis_y * gInfo.ratio_shaft_axis_y));
-				speed = speed * ((gInfo.enc_pulse_per_rev_axis_y * gInfo.ratio_gear_axis_y)/(gInfo.stage_mm_per_rev_axis_y * gInfo.ratio_shaft_axis_y));;
-				acc = acc * ((gInfo.enc_pulse_per_rev_axis_y * gInfo.ratio_gear_axis_y)/(gInfo.stage_mm_per_rev_axis_y * gInfo.ratio_shaft_axis_y));;
-				dec = dec * ((gInfo.enc_pulse_per_rev_axis_y * gInfo.ratio_gear_axis_y)/(gInfo.stage_mm_per_rev_axis_y * gInfo.ratio_shaft_axis_y));;
-			} else if (axis == "z") {
-				position = position * ((gInfo.enc_pulse_per_rev_axis_z * gInfo.ratio_gear_axis_z)/(gInfo.stage_mm_per_rev_axis_z * gInfo.ratio_shaft_axis_z));
-				speed = speed * ((gInfo.enc_pulse_per_rev_axis_z * gInfo.ratio_gear_axis_z)/(gInfo.stage_mm_per_rev_axis_z * gInfo.ratio_shaft_axis_z));;
-				acc = acc * ((gInfo.enc_pulse_per_rev_axis_z * gInfo.ratio_gear_axis_z)/(gInfo.stage_mm_per_rev_axis_z * gInfo.ratio_shaft_axis_z));;
-				dec = dec * ((gInfo.enc_pulse_per_rev_axis_z * gInfo.ratio_gear_axis_z)/(gInfo.stage_mm_per_rev_axis_z * gInfo.ratio_shaft_axis_z));;
-			} else {
-				res.success = SRV_FAIL;
-
-				return true;
-			}
-			reprintf(ScreenOutput::ALWAYS, "gantry_robot post: %lf %lf %lf %lf\n", position, speed, acc, dec);
-		}
-		setPosParametersMsg(&queueModbus, axisToId(axis));
-		setPositionMsg(&queueModbus, axisToId(axis), (int32_t)position, (int32_t)speed, (int32_t)acc, (int32_t)dec);
-
-		setAxisCommandMsg(&queueModbus, axisToId(axis), AxisCommand::start, OnOff::on);
-		setAxisCommandMsg(&queueModbus, axisToId(axis), AxisCommand::start, OnOff::off);
-
-		res.success = SRV_SUCCESS;
-
-		reprintf(ScreenOutput::ALWAYS, "[%s{%s}(%d)]\n", __FILENAME__, __FUNCTION__, __LINE__);
-	} else {
-		res.success = SRV_FAIL;
-
-		reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)]\n", __FILENAME__, __FUNCTION__, __LINE__);
-	}
-
-    return true;
-}
-
 bool serviceLocationCallback(gantry_robot::Location::Request &req, gantry_robot::Location::Response &res) {
     ros::Time time = ros::Time::now();
-	static double position_x, position_y, position_z, speed_x, speed_y, speed_z, acc_x, acc_y, acc_z, dec_x, dec_y, dec_z;
-	static double position, speed, acc, dec;
 
-	if (gInfo.node_name == "serial_robot") {
-		speed = DEG_TO_RAD(gInfo.pos_speed_val);
-		acc = DEG_TO_RAD(gInfo.pos_acc_dec_val);
-		dec = DEG_TO_RAD(gInfo.pos_acc_dec_val);
+	gInfo.location_req = req;
+	// gInfo.location_done = SRV_CHECKING;
+	gInfo.location_done = SRV_SUCCESS;
 
-		position = DEG_TO_RAD(req.x);
-		position_x = position * ((gInfo.enc_pulse_per_rev_axis_x * gInfo.ratio_gear_axis_x)/(DEG_TO_RAD(gInfo.stage_mm_per_rev_axis_x) * gInfo.ratio_shaft_axis_x));
-		speed_x = speed * ((gInfo.enc_pulse_per_rev_axis_x * gInfo.ratio_gear_axis_x)/(DEG_TO_RAD(gInfo.stage_mm_per_rev_axis_x) * gInfo.ratio_shaft_axis_x));
-		acc_x = acc * ((gInfo.enc_pulse_per_rev_axis_x * gInfo.ratio_gear_axis_x)/(DEG_TO_RAD(gInfo.stage_mm_per_rev_axis_x) * gInfo.ratio_shaft_axis_x));
-		dec_x = dec * ((gInfo.enc_pulse_per_rev_axis_x * gInfo.ratio_gear_axis_x)/(DEG_TO_RAD(gInfo.stage_mm_per_rev_axis_x) * gInfo.ratio_shaft_axis_x));
-		setPosParametersMsg(&queueModbus, axisToId("x"));
-		setPositionMsg(&queueModbus, axisToId("x"), (int32_t)position_x, (int32_t)speed_x, (int32_t)acc_x, (int32_t)dec_x);
-		
-		position = DEG_TO_RAD(req.y);
-		position_y = position * ((gInfo.enc_pulse_per_rev_axis_y * gInfo.ratio_gear_axis_y)/(DEG_TO_RAD(gInfo.stage_mm_per_rev_axis_y) * gInfo.ratio_shaft_axis_y));
-		speed_y = speed * ((gInfo.enc_pulse_per_rev_axis_y * gInfo.ratio_gear_axis_y)/(DEG_TO_RAD(gInfo.stage_mm_per_rev_axis_y) * gInfo.ratio_shaft_axis_y));
-		acc_y = acc * ((gInfo.enc_pulse_per_rev_axis_y * gInfo.ratio_gear_axis_y)/(DEG_TO_RAD(gInfo.stage_mm_per_rev_axis_y) * gInfo.ratio_shaft_axis_y));
-		dec_y = dec * ((gInfo.enc_pulse_per_rev_axis_y * gInfo.ratio_gear_axis_y)/(DEG_TO_RAD(gInfo.stage_mm_per_rev_axis_y) * gInfo.ratio_shaft_axis_y));
-		setPosParametersMsg(&queueModbus, axisToId("y"));
-		setPositionMsg(&queueModbus, axisToId("y"), (int32_t)position_y, (int32_t)speed_y, (int32_t)acc_y, (int32_t)dec_y);
-		
-		position = DEG_TO_RAD(req.z);
-		position_z = position * ((gInfo.enc_pulse_per_rev_axis_z * gInfo.ratio_gear_axis_z)/(DEG_TO_RAD(gInfo.stage_mm_per_rev_axis_z) * gInfo.ratio_shaft_axis_z));
-		speed_z = speed * ((gInfo.enc_pulse_per_rev_axis_z * gInfo.ratio_gear_axis_z)/(DEG_TO_RAD(gInfo.stage_mm_per_rev_axis_z) * gInfo.ratio_shaft_axis_z));
-		acc_z = acc * ((gInfo.enc_pulse_per_rev_axis_z * gInfo.ratio_gear_axis_z)/(DEG_TO_RAD(gInfo.stage_mm_per_rev_axis_z) * gInfo.ratio_shaft_axis_z));
-		dec_z = dec * ((gInfo.enc_pulse_per_rev_axis_z * gInfo.ratio_gear_axis_z)/(DEG_TO_RAD(gInfo.stage_mm_per_rev_axis_z) * gInfo.ratio_shaft_axis_z));
-		setPosParametersMsg(&queueModbus, axisToId("z"));
-		setPositionMsg(&queueModbus, axisToId("z"), (int32_t)position_z, (int32_t)speed_z, (int32_t)acc_z, (int32_t)dec_z);
-	} else {
-		speed = M_TO_MM(gInfo.pos_speed_val);
-		acc = M_TO_MM(gInfo.pos_acc_dec_val);
-		dec = M_TO_MM(gInfo.pos_acc_dec_val);
+	queueCommandState.push(CommandState::LOCATION);
 
-		position = M_TO_MM(req.x);
-		position_x = position * ((gInfo.enc_pulse_per_rev_axis_x * gInfo.ratio_gear_axis_x)/(gInfo.stage_mm_per_rev_axis_x * gInfo.ratio_shaft_axis_x));
-		speed_x = speed * ((gInfo.enc_pulse_per_rev_axis_x * gInfo.ratio_gear_axis_x)/(gInfo.stage_mm_per_rev_axis_x * gInfo.ratio_shaft_axis_x));
-		acc_x = acc * ((gInfo.enc_pulse_per_rev_axis_x * gInfo.ratio_gear_axis_x)/(gInfo.stage_mm_per_rev_axis_x * gInfo.ratio_shaft_axis_x));
-		dec_x = dec * ((gInfo.enc_pulse_per_rev_axis_x * gInfo.ratio_gear_axis_x)/(gInfo.stage_mm_per_rev_axis_x * gInfo.ratio_shaft_axis_x));
-		setPosParametersMsg(&queueModbus, axisToId("x"));
-		setPositionMsg(&queueModbus, axisToId("x"), (int32_t)position_x, (int32_t)speed_x, (int32_t)acc_x, (int32_t)dec_x);
-		
-		position = M_TO_MM(req.y);
-		position_y = position * ((gInfo.enc_pulse_per_rev_axis_y * gInfo.ratio_gear_axis_y)/(gInfo.stage_mm_per_rev_axis_y * gInfo.ratio_shaft_axis_y));
-		speed_y = speed * ((gInfo.enc_pulse_per_rev_axis_y * gInfo.ratio_gear_axis_y)/(gInfo.stage_mm_per_rev_axis_y * gInfo.ratio_shaft_axis_y));
-		acc_y = acc * ((gInfo.enc_pulse_per_rev_axis_y * gInfo.ratio_gear_axis_y)/(gInfo.stage_mm_per_rev_axis_y * gInfo.ratio_shaft_axis_y));
-		dec_y = dec * ((gInfo.enc_pulse_per_rev_axis_y * gInfo.ratio_gear_axis_y)/(gInfo.stage_mm_per_rev_axis_y * gInfo.ratio_shaft_axis_y));
-		setPosParametersMsg(&queueModbus, axisToId("y"));
-		setPositionMsg(&queueModbus, axisToId("y"), (int32_t)position_y, (int32_t)speed_y, (int32_t)acc_y, (int32_t)dec_y);
-		
-		position = M_TO_MM(req.z);
-		position_z = position * ((gInfo.enc_pulse_per_rev_axis_z * gInfo.ratio_gear_axis_z)/(gInfo.stage_mm_per_rev_axis_z * gInfo.ratio_shaft_axis_z));
-		speed_z = speed * ((gInfo.enc_pulse_per_rev_axis_z * gInfo.ratio_gear_axis_z)/(gInfo.stage_mm_per_rev_axis_z * gInfo.ratio_shaft_axis_z));
-		acc_z = acc * ((gInfo.enc_pulse_per_rev_axis_z * gInfo.ratio_gear_axis_z)/(gInfo.stage_mm_per_rev_axis_z * gInfo.ratio_shaft_axis_z));
-		dec_z = dec * ((gInfo.enc_pulse_per_rev_axis_z * gInfo.ratio_gear_axis_z)/(gInfo.stage_mm_per_rev_axis_z * gInfo.ratio_shaft_axis_z));
-		setPosParametersMsg(&queueModbus, axisToId("z"));
-		setPositionMsg(&queueModbus, axisToId("z"), (int32_t)position_z, (int32_t)speed_z, (int32_t)acc_z, (int32_t)dec_z);
-	}
+	// ros::Rate r(1);
+	// while (ros::ok() && gInfo.location_done==SRV_CHECKING) {
+	// 	printf("test%lf\n", ros::Time::now().toSec());
+	// 	r.sleep();
+	// }
 
-	setAxisCommandMsg(&queueModbus, axisToId("x"), AxisCommand::start, OnOff::on);
-	setAxisCommandMsg(&queueModbus, axisToId("y"), AxisCommand::start, OnOff::on);
-	setAxisCommandMsg(&queueModbus, axisToId("z"), AxisCommand::start, OnOff::on);
-
-	setAxisCommandMsg(&queueModbus, axisToId("x"), AxisCommand::start, OnOff::off);
-	setAxisCommandMsg(&queueModbus, axisToId("y"), AxisCommand::start, OnOff::off);
-	setAxisCommandMsg(&queueModbus, axisToId("z"), AxisCommand::start, OnOff::off);
-
-	res.success = SRV_SUCCESS;
+	res.success = gInfo.location_done;
 
 	reprintf(ScreenOutput::ALWAYS, "[%s{%s}(%d)]\n", __FILENAME__, __FUNCTION__, __LINE__);
 
@@ -196,153 +57,40 @@ bool serviceLocationCallback(gantry_robot::Location::Request &req, gantry_robot:
 bool serviceCommandCallback(gantry_robot::Command::Request &req, gantry_robot::Command::Response &res) {
     ros::Time time = ros::Time::now();
 
-	if (req.command == (int32_t)CommandState::INIT) {
-		res.success = SRV_SUCCESS;
-
-		reprintf(ScreenOutput::ALWAYS, "[%s{%s}(%d)]\n", __FILENAME__, __FUNCTION__, __LINE__);
-	} else {
-		res.success = SRV_FAIL;
-
-		reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)]\n", __FILENAME__, __FUNCTION__, __LINE__);
+	switch (req.command) {
+		case (int32_t)CommandState::INIT:
+			queueCommandState.push(CommandState::INIT);
+		break;
+		case (int32_t)CommandState::HOME:
+			queueCommandState.push(CommandState::HOME);
+		break;
+		case (int32_t)CommandState::LOCATION:
+			// queueCommandState.push(CommandState::LOCATION);
+		break;
+		case (int32_t)CommandState::POSITION:
+			// queueCommandState.push(CommandState::POSITION);
+		break;
+		case (int32_t)CommandState::JOG:
+			// queueCommandState.push(CommandState::JOG);
+		break;
+		case (int32_t)CommandState::STOP:
+			queueCommandState.push(CommandState::STOP);
+		break;
+		case (int32_t)CommandState::IDLE:
+			queueCommandState.push(CommandState::IDLE);
+		break;
+		case (int32_t)CommandState::ERROR:
+			queueCommandState.push(CommandState::ERROR);
+		break;
+		default:
+			reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandState::UNKNOWN occured\n", __FILENAME__, __FUNCTION__, __LINE__);
+		break;
 	}
 
+	res.success = SRV_SUCCESS;
 
     return true;
 }
-
-bool serviceHomingCallback(gantry_robot::Homing::Request &req, gantry_robot::Homing::Response &res) {
-    ros::Time time = ros::Time::now();
-
-	std::string axis = req.axis;
-	std::transform(axis.begin(), axis.end(), axis.begin(), ::tolower);
-
-	if (axis == "x" || axis == "y" || axis == "z") {
-		setAxisCommandMsg(&queueModbus, axisToId(axis), AxisCommand::emg, OnOff::off);
-		setAxisCommandMsg(&queueModbus, axisToId(axis), AxisCommand::a_rst, OnOff::on);
-		setAxisCommandMsg(&queueModbus, axisToId(axis), AxisCommand::a_rst, OnOff::off);
-		setAxisCommandMsg(&queueModbus, axisToId(axis), AxisCommand::stop, OnOff::off);
-		setAxisCommandMsg(&queueModbus, axisToId(axis), AxisCommand::sv_on, OnOff::on);
-
-		if (gInfo.axis_x_num == axisToId(axis)) {
-			if (info.axisX.status.output.org == (uint8_t)OnOff::on && req.setForce || !info.axisX.status.output.org) {
-				setHomingParametersMsg(&queueModbus, axisToId(axis), gInfo.homing_speed_x_val, gInfo.homing_offset_x_val, gInfo.homing_done_behaviour_x_val);
-				setAxisCommandMsg(&queueModbus, axisToId(axis), AxisCommand::hstart, OnOff::on);
-				setAxisCommandMsg(&queueModbus, axisToId(axis), AxisCommand::hstart, OnOff::off);
-			}
-		} else if (gInfo.axis_y_num == axisToId(axis)) {
-			if (info.axisY.status.output.org == (uint8_t)OnOff::on && req.setForce || !info.axisY.status.output.org) {
-				setHomingParametersMsg(&queueModbus, axisToId(axis), gInfo.homing_speed_y_val, gInfo.homing_offset_y_val, gInfo.homing_done_behaviour_y_val);
-				setAxisCommandMsg(&queueModbus, axisToId(axis), AxisCommand::hstart, OnOff::on);
-				setAxisCommandMsg(&queueModbus, axisToId(axis), AxisCommand::hstart, OnOff::off);
-			}
-		} else if (gInfo.axis_z_num == axisToId(axis)) {
-			if (info.axisZ.status.output.org == (uint8_t)OnOff::on && req.setForce || !info.axisZ.status.output.org) {
-				setHomingParametersMsg(&queueModbus, axisToId(axis), gInfo.homing_speed_z_val, gInfo.homing_offset_z_val, gInfo.homing_done_behaviour_z_val);
-				setAxisCommandMsg(&queueModbus, axisToId(axis), AxisCommand::hstart, OnOff::on);
-				setAxisCommandMsg(&queueModbus, axisToId(axis), AxisCommand::hstart, OnOff::off);
-			}
-		} else {
-		}
-
-		res.success = SRV_SUCCESS;
-
-		reprintf(ScreenOutput::ALWAYS, "[%s{%s}(%d)]\n", __FILENAME__, __FUNCTION__, __LINE__);
-	} else {
-		res.success = SRV_FAIL;
-		reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)]\n", __FILENAME__, __FUNCTION__, __LINE__);
-	}
-
-    return true;
-}
-
-#ifdef YAPPER_ENABLE
-void yapLocalCallBack(const yapper::YapIn yapIn) {
-	static yapper::YapIn yapInPre;
-
-	if (yapInPre.jogInfo.x_p != yapIn.jogInfo.x_p)
-	if (yapIn.jogInfo.x_p) {
-		reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : yapIn.jogInfo.x_p pushed\n", __FILENAME__, __FUNCTION__, __LINE__);
-		setAxisCommandMsg(&queueModbus, gInfo.axis_x_num, AxisCommand::jdir, OnOff::on);
-		setAxisCommandMsg(&queueModbus, gInfo.axis_x_num, AxisCommand::jstart, OnOff::on);
-	} else {
-		reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : yapIn.jogInfo.x_p released\n", __FILENAME__, __FUNCTION__, __LINE__);
-		setAxisCommandMsg(&queueModbus, gInfo.axis_x_num, AxisCommand::jdir, OnOff::on);
-		setAxisCommandMsg(&queueModbus, gInfo.axis_x_num, AxisCommand::jstart, OnOff::off);
-	}
-	if (yapInPre.jogInfo.x_n != yapIn.jogInfo.x_n)
-	if (yapIn.jogInfo.x_n) {
-		reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : yapIn.jogInfo.x_n pushed\n", __FILENAME__, __FUNCTION__, __LINE__);
-		setAxisCommandMsg(&queueModbus, gInfo.axis_x_num, AxisCommand::jdir, OnOff::off);
-		setAxisCommandMsg(&queueModbus, gInfo.axis_x_num, AxisCommand::jstart, OnOff::on);
-	} else {
-		reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : yapIn.jogInfo.x_n released\n", __FILENAME__, __FUNCTION__, __LINE__);
-		setAxisCommandMsg(&queueModbus, gInfo.axis_x_num, AxisCommand::jdir, OnOff::off);
-		setAxisCommandMsg(&queueModbus, gInfo.axis_x_num, AxisCommand::jstart, OnOff::off);
-	}
-	if (yapInPre.jogInfo.y_p != yapIn.jogInfo.y_p)
-	if (yapIn.jogInfo.y_p) {
-		reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : yapIn.jogInfo.y_p pushed\n", __FILENAME__, __FUNCTION__, __LINE__);
-		setAxisCommandMsg(&queueModbus, gInfo.axis_y_num, AxisCommand::jdir, OnOff::on);
-		setAxisCommandMsg(&queueModbus, gInfo.axis_y_num, AxisCommand::jstart, OnOff::on);
-	} else {
-		reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : yapIn.jogInfo.y_p released\n", __FILENAME__, __FUNCTION__, __LINE__);
-		setAxisCommandMsg(&queueModbus, gInfo.axis_y_num, AxisCommand::jdir, OnOff::on);
-		setAxisCommandMsg(&queueModbus, gInfo.axis_y_num, AxisCommand::jstart, OnOff::off);
-	}
-	if (yapInPre.jogInfo.y_n != yapIn.jogInfo.y_n)
-	if (yapIn.jogInfo.y_n) {
-		reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : yapIn.jogInfo.y_n pushed\n", __FILENAME__, __FUNCTION__, __LINE__);
-		setAxisCommandMsg(&queueModbus, gInfo.axis_y_num, AxisCommand::jdir, OnOff::off);
-		setAxisCommandMsg(&queueModbus, gInfo.axis_y_num, AxisCommand::jstart, OnOff::on);
-	} else {
-		reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : yapIn.jogInfo.y_n released\n", __FILENAME__, __FUNCTION__, __LINE__);
-		setAxisCommandMsg(&queueModbus, gInfo.axis_y_num, AxisCommand::jdir, OnOff::off);
-		setAxisCommandMsg(&queueModbus, gInfo.axis_y_num, AxisCommand::jstart, OnOff::off);
-	}
-	if (yapInPre.jogInfo.z_p != yapIn.jogInfo.z_p)
-	if (yapIn.jogInfo.z_p) {
-		reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : yapIn.jogInfo.z_p pushed\n", __FILENAME__, __FUNCTION__, __LINE__);
-		setAxisCommandMsg(&queueModbus, gInfo.axis_z_num, AxisCommand::jdir, OnOff::on);
-		setAxisCommandMsg(&queueModbus, gInfo.axis_z_num, AxisCommand::jstart, OnOff::on);
-	} else {
-		reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : yapIn.jogInfo.z_p released\n", __FILENAME__, __FUNCTION__, __LINE__);
-		setAxisCommandMsg(&queueModbus, gInfo.axis_z_num, AxisCommand::jdir, OnOff::on);
-		setAxisCommandMsg(&queueModbus, gInfo.axis_z_num, AxisCommand::jstart, OnOff::off);
-	}
-	if (yapInPre.jogInfo.z_n != yapIn.jogInfo.z_n)
-	if (yapIn.jogInfo.z_n) {
-		reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : yapIn.jogInfo.z_n pushed\n", __FILENAME__, __FUNCTION__, __LINE__);
-		setAxisCommandMsg(&queueModbus, gInfo.axis_z_num, AxisCommand::jdir, OnOff::off);
-		setAxisCommandMsg(&queueModbus, gInfo.axis_z_num, AxisCommand::jstart, OnOff::on);
-	} else {
-		reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : yapIn.jogInfo.z_n released\n", __FILENAME__, __FUNCTION__, __LINE__);
-		setAxisCommandMsg(&queueModbus, gInfo.axis_z_num, AxisCommand::jdir, OnOff::off);
-		setAxisCommandMsg(&queueModbus, gInfo.axis_z_num, AxisCommand::jstart, OnOff::off);
-	}
-	yapInPre = yapIn;
-    # if 0
-#define STEP_TIME 1
-    static double time_cur = ros::Time::now().toSec();
-    static double time_pre = time_cur;
-
-    time_cur = ros::Time::now().toSec();
-    if (time_cur - time_pre > STEP_TIME) {
-        time_pre = time_cur;
-    }
-    #endif
-
-    #if TICK_LOG
-    static double time_cur = ros::Time::now().toSec();
-    static double time_pre = time_cur;
-    static uint32_t count = 0;
-
-    time_cur = ros::Time::now().toSec();
-
-    printf("%s count: %05d, time_diff(ms): %lf, ts: %lf\n", __FUNCTION__, count++, time_cur-time_pre, time_cur);
-    time_pre = time_cur;
-    #endif
-}
-#endif
 
 void modbusLoop(int rate, std::queue<AxisMsg>* queueModbus, ModbusLoopState* modbusLoopState, ros::Publisher* pub_info, modbus_t* ctx) {
     int size;
@@ -424,6 +172,7 @@ void modbusLoop(int rate, std::queue<AxisMsg>* queueModbus, ModbusLoopState* mod
 					}
 				break;
 				default:
+					reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandType::UNKNOWN occured\n", __FILENAME__, __FUNCTION__, __LINE__);
 				break;
 			}
 		} else {
@@ -570,13 +319,15 @@ int main(int argc, char* argv[]) {
     nh.getParam("pos_action_val", gInfo.pos_action_val);
     nh.getParam("pos_speed_val", gInfo.pos_speed_val);
     nh.getParam("pos_acc_dec_val", gInfo.pos_acc_dec_val);
+    nh.getParam("srv_timeout_sec", gInfo.srv_timeout_sec);
+    nh.getParam("location_tolerance", gInfo.location_tolerance);
 #endif
 
-	// CommandState cmdState = CommandState::INIT;
-	CommandState cmdState = CommandState::HOME;
+	CommandState cmdState = CommandState::INIT;
 	CommandState cmdStatePre = cmdState;
 	FunctionState funcState = FunctionState::INIT;
 	InitState initState = InitState::HOME_SET;
+	AxisState axisState = AxisState::X;
 
 	modbus_t* ctx;
 
@@ -628,8 +379,8 @@ int main(int argc, char* argv[]) {
 	// printf("modbus_get_byte_timeout: %ld, %ld\n", byte_timeout.tv_sec, byte_timeout.tv_usec);
 	// modbus_test_end
 
-    ros::ServiceServer service_position = nh.advertiseService("gantry_robot_position", servicePositionCallback);
-    ros::ServiceServer service_homing = nh.advertiseService("gantry_robot_homing", serviceHomingCallback);
+    // ros::ServiceServer service_position = nh.advertiseService("gantry_robot_position", servicePositionCallback);
+    // ros::ServiceServer service_homing = nh.advertiseService("gantry_robot_homing", serviceHomingCallback);
     ros::ServiceServer service_command = nh.advertiseService("gantry_robot_command", serviceCommandCallback);
     ros::ServiceServer service_location = nh.advertiseService("gantry_robot_location", serviceLocationCallback);
 
@@ -642,6 +393,10 @@ int main(int argc, char* argv[]) {
     int main_hz = 1000;
 	AxisMsg axisMsg;
     boost::thread threadModbusLoop(modbusLoop, main_hz, &queueModbus, &modbusLoopState, &pub_info, ctx);
+
+	double position_x, position_y, position_z, speed_x, speed_y, speed_z, acc_x, acc_y, acc_z, dec_x, dec_y, dec_z;
+	double position, speed, acc, dec;
+	double srv_timeout_start, srv_timeout_now;
 
 	#define STEP_TIME 1.0
 	double ts_run;
@@ -663,8 +418,15 @@ int main(int argc, char* argv[]) {
 			ts_pre = ts_cur;
 		}
 
-		if (cmdState != cmdStatePre) {
+        if (queueCommandState.size()) {// 서비스를 통한 스테이트 요청이 있을 경우
+			cmdState = queueCommandState.front();
+			// queueCommandState.pop();
+			clearQueueCommandState();
 			funcState = FunctionState::INIT;
+			reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandState::%d FunctionState::%d\n", __FILENAME__, __FUNCTION__, __LINE__, (int32_t)cmdState, (int32_t)funcState);
+		} else if (cmdState != cmdStatePre) {// 내부 스테이트에 변화가 있을 경우
+			funcState = FunctionState::INIT;
+		} else {
 		}
 		cmdStatePre = cmdState;
 		reprintf(ScreenOutput::NO, "[%s{%s}(%d)] : CommandState::%d FunctionState::%d\n", __FILENAME__, __FUNCTION__, __LINE__, (int32_t)cmdState, (int32_t)funcState);
@@ -751,6 +513,7 @@ int main(int argc, char* argv[]) {
 								initState = InitState::IDLE;
 							break;
 							default:
+								reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandState::INIT FunctionState::ACTION FunctionState::UNKNOWN occured\n", __FILENAME__, __FUNCTION__, __LINE__);
 								cmdState = CommandState::ERROR;
 							break;
 						}
@@ -761,10 +524,18 @@ int main(int argc, char* argv[]) {
 						funcState = FunctionState::IDLE;
 					break;
 					case FunctionState::IDLE:
-						cmdState = CommandState::IDLE;
+						if (info.axisX.org && info.axisY.org && info.axisZ.org) {
+							cmdState = CommandState::IDLE;
+						} else {
+							cmdState = CommandState::HOME;
+						}
 						funcState = FunctionState::IDLE;
 					break;
 					case FunctionState::ERROR:
+						cmdState = CommandState::ERROR;
+					break;
+					default:
+						reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandState::INIT FunctionState::UNKNOWN occured\n", __FILENAME__, __FUNCTION__, __LINE__);
 						cmdState = CommandState::ERROR;
 					break;
 				}
@@ -821,7 +592,7 @@ int main(int argc, char* argv[]) {
 								funcState = FunctionState::ERROR;
 								break;
 							}
-							if (info.axisZ.status.output.org) {
+							if (info.axisZ.status.output.org && info.axisZ.location == 0.0) {
 								reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandState::HOME FunctionState::ACTION homing Z success\n", __FILENAME__, __FUNCTION__, __LINE__);
 								break;
 							}
@@ -844,7 +615,8 @@ int main(int argc, char* argv[]) {
 								funcState = FunctionState::ERROR;
 								break;
 							}
-							if (info.axisX.status.output.org && info.axisY.status.output.org) {
+							if (info.axisX.status.output.org && info.axisY.status.output.org &&
+								info.axisX.location == 0.0 && info.axisY.location == 0.0) {
 								reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandState::HOME FunctionState::ACTION homing XY success\n", __FILENAME__, __FUNCTION__, __LINE__);
 								break;
 							}
@@ -861,9 +633,142 @@ int main(int argc, char* argv[]) {
 						funcState = FunctionState::IDLE;
 					break;
 					case FunctionState::IDLE:
+						cmdState = CommandState::IDLE;
 						funcState = FunctionState::IDLE;
 					break;
 					case FunctionState::ERROR:
+						cmdState = CommandState::ERROR;
+					break;
+					default:
+						reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandState::HOME FunctionState::UNKNOWN occured\n", __FILENAME__, __FUNCTION__, __LINE__);
+						cmdState = CommandState::ERROR;
+					break;
+				}
+			break;
+			case CommandState::LOCATION:
+				switch (funcState) {
+					case FunctionState::INIT:
+						funcState = FunctionState::SET;
+					break;
+					case FunctionState::SET:
+						if (gInfo.node_name == "serial_robot") {
+							speed = DEG_TO_RAD(gInfo.pos_speed_val);
+							acc = DEG_TO_RAD(gInfo.pos_acc_dec_val);
+							dec = DEG_TO_RAD(gInfo.pos_acc_dec_val);
+
+							position = DEG_TO_RAD(gInfo.location_req.x);
+							position_x = position * ((gInfo.enc_pulse_per_rev_axis_x * gInfo.ratio_gear_axis_x)/(DEG_TO_RAD(gInfo.stage_mm_per_rev_axis_x) * gInfo.ratio_shaft_axis_x));
+							speed_x = speed * ((gInfo.enc_pulse_per_rev_axis_x * gInfo.ratio_gear_axis_x)/(DEG_TO_RAD(gInfo.stage_mm_per_rev_axis_x) * gInfo.ratio_shaft_axis_x));
+							acc_x = acc * ((gInfo.enc_pulse_per_rev_axis_x * gInfo.ratio_gear_axis_x)/(DEG_TO_RAD(gInfo.stage_mm_per_rev_axis_x) * gInfo.ratio_shaft_axis_x));
+							dec_x = dec * ((gInfo.enc_pulse_per_rev_axis_x * gInfo.ratio_gear_axis_x)/(DEG_TO_RAD(gInfo.stage_mm_per_rev_axis_x) * gInfo.ratio_shaft_axis_x));
+							setPosParametersMsg(&queueModbus, axisToId("x"));
+							setPositionMsg(&queueModbus, axisToId("x"), (int32_t)position_x, (int32_t)speed_x, (int32_t)acc_x, (int32_t)dec_x);
+							
+							position = DEG_TO_RAD(gInfo.location_req.y);
+							position_y = position * ((gInfo.enc_pulse_per_rev_axis_y * gInfo.ratio_gear_axis_y)/(DEG_TO_RAD(gInfo.stage_mm_per_rev_axis_y) * gInfo.ratio_shaft_axis_y));
+							speed_y = speed * ((gInfo.enc_pulse_per_rev_axis_y * gInfo.ratio_gear_axis_y)/(DEG_TO_RAD(gInfo.stage_mm_per_rev_axis_y) * gInfo.ratio_shaft_axis_y));
+							acc_y = acc * ((gInfo.enc_pulse_per_rev_axis_y * gInfo.ratio_gear_axis_y)/(DEG_TO_RAD(gInfo.stage_mm_per_rev_axis_y) * gInfo.ratio_shaft_axis_y));
+							dec_y = dec * ((gInfo.enc_pulse_per_rev_axis_y * gInfo.ratio_gear_axis_y)/(DEG_TO_RAD(gInfo.stage_mm_per_rev_axis_y) * gInfo.ratio_shaft_axis_y));
+							setPosParametersMsg(&queueModbus, axisToId("y"));
+							setPositionMsg(&queueModbus, axisToId("y"), (int32_t)position_y, (int32_t)speed_y, (int32_t)acc_y, (int32_t)dec_y);
+							
+							position = DEG_TO_RAD(gInfo.location_req.z);
+							position_z = position * ((gInfo.enc_pulse_per_rev_axis_z * gInfo.ratio_gear_axis_z)/(DEG_TO_RAD(gInfo.stage_mm_per_rev_axis_z) * gInfo.ratio_shaft_axis_z));
+							speed_z = speed * ((gInfo.enc_pulse_per_rev_axis_z * gInfo.ratio_gear_axis_z)/(DEG_TO_RAD(gInfo.stage_mm_per_rev_axis_z) * gInfo.ratio_shaft_axis_z));
+							acc_z = acc * ((gInfo.enc_pulse_per_rev_axis_z * gInfo.ratio_gear_axis_z)/(DEG_TO_RAD(gInfo.stage_mm_per_rev_axis_z) * gInfo.ratio_shaft_axis_z));
+							dec_z = dec * ((gInfo.enc_pulse_per_rev_axis_z * gInfo.ratio_gear_axis_z)/(DEG_TO_RAD(gInfo.stage_mm_per_rev_axis_z) * gInfo.ratio_shaft_axis_z));
+							setPosParametersMsg(&queueModbus, axisToId("z"));
+							setPositionMsg(&queueModbus, axisToId("z"), (int32_t)position_z, (int32_t)speed_z, (int32_t)acc_z, (int32_t)dec_z);
+						} else {
+							speed = M_TO_MM(gInfo.pos_speed_val);
+							acc = M_TO_MM(gInfo.pos_acc_dec_val);
+							dec = M_TO_MM(gInfo.pos_acc_dec_val);
+
+							position = M_TO_MM(gInfo.location_req.x);
+							position_x = position * ((gInfo.enc_pulse_per_rev_axis_x * gInfo.ratio_gear_axis_x)/(gInfo.stage_mm_per_rev_axis_x * gInfo.ratio_shaft_axis_x));
+							speed_x = speed * ((gInfo.enc_pulse_per_rev_axis_x * gInfo.ratio_gear_axis_x)/(gInfo.stage_mm_per_rev_axis_x * gInfo.ratio_shaft_axis_x));
+							acc_x = acc * ((gInfo.enc_pulse_per_rev_axis_x * gInfo.ratio_gear_axis_x)/(gInfo.stage_mm_per_rev_axis_x * gInfo.ratio_shaft_axis_x));
+							dec_x = dec * ((gInfo.enc_pulse_per_rev_axis_x * gInfo.ratio_gear_axis_x)/(gInfo.stage_mm_per_rev_axis_x * gInfo.ratio_shaft_axis_x));
+							setPosParametersMsg(&queueModbus, axisToId("x"));
+							setPositionMsg(&queueModbus, axisToId("x"), (int32_t)position_x, (int32_t)speed_x, (int32_t)acc_x, (int32_t)dec_x);
+							
+							position = M_TO_MM(gInfo.location_req.y);
+							position_y = position * ((gInfo.enc_pulse_per_rev_axis_y * gInfo.ratio_gear_axis_y)/(gInfo.stage_mm_per_rev_axis_y * gInfo.ratio_shaft_axis_y));
+							speed_y = speed * ((gInfo.enc_pulse_per_rev_axis_y * gInfo.ratio_gear_axis_y)/(gInfo.stage_mm_per_rev_axis_y * gInfo.ratio_shaft_axis_y));
+							acc_y = acc * ((gInfo.enc_pulse_per_rev_axis_y * gInfo.ratio_gear_axis_y)/(gInfo.stage_mm_per_rev_axis_y * gInfo.ratio_shaft_axis_y));
+							dec_y = dec * ((gInfo.enc_pulse_per_rev_axis_y * gInfo.ratio_gear_axis_y)/(gInfo.stage_mm_per_rev_axis_y * gInfo.ratio_shaft_axis_y));
+							setPosParametersMsg(&queueModbus, axisToId("y"));
+							setPositionMsg(&queueModbus, axisToId("y"), (int32_t)position_y, (int32_t)speed_y, (int32_t)acc_y, (int32_t)dec_y);
+							
+							position = M_TO_MM(gInfo.location_req.z);
+							position_z = position * ((gInfo.enc_pulse_per_rev_axis_z * gInfo.ratio_gear_axis_z)/(gInfo.stage_mm_per_rev_axis_z * gInfo.ratio_shaft_axis_z));
+							speed_z = speed * ((gInfo.enc_pulse_per_rev_axis_z * gInfo.ratio_gear_axis_z)/(gInfo.stage_mm_per_rev_axis_z * gInfo.ratio_shaft_axis_z));
+							acc_z = acc * ((gInfo.enc_pulse_per_rev_axis_z * gInfo.ratio_gear_axis_z)/(gInfo.stage_mm_per_rev_axis_z * gInfo.ratio_shaft_axis_z));
+							dec_z = dec * ((gInfo.enc_pulse_per_rev_axis_z * gInfo.ratio_gear_axis_z)/(gInfo.stage_mm_per_rev_axis_z * gInfo.ratio_shaft_axis_z));
+							setPosParametersMsg(&queueModbus, axisToId("z"));
+							setPositionMsg(&queueModbus, axisToId("z"), (int32_t)position_z, (int32_t)speed_z, (int32_t)acc_z, (int32_t)dec_z);
+						}
+						funcState = FunctionState::ACTION;
+					break;
+					case FunctionState::ACTION:
+						setAxisCommandMsg(&queueModbus, axisToId("x"), AxisCommand::start, OnOff::on);
+						setAxisCommandMsg(&queueModbus, axisToId("y"), AxisCommand::start, OnOff::on);
+						setAxisCommandMsg(&queueModbus, axisToId("z"), AxisCommand::start, OnOff::on);
+
+						setAxisCommandMsg(&queueModbus, axisToId("x"), AxisCommand::start, OnOff::off);
+						setAxisCommandMsg(&queueModbus, axisToId("y"), AxisCommand::start, OnOff::off);
+						setAxisCommandMsg(&queueModbus, axisToId("z"), AxisCommand::start, OnOff::off);
+
+						srv_timeout_start = ros::Time::now().toSec();
+						reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandState::LOCATION FunctionState::ACTION occured\n", __FILENAME__, __FUNCTION__, __LINE__);
+						funcState = FunctionState::DONE;
+					break;
+					case FunctionState::DONE:
+#if 1
+						srv_timeout_now = ros::Time::now().toSec();
+						srv_timeout_now -= srv_timeout_start;
+						if (gInfo.srv_timeout_sec > srv_timeout_now) {
+							if (gInfo.node_name == "serial_robot") {
+								if (info.axisX.eos && info.axisY.eos && info.axisZ.eos &&
+								info.axisX.inpos1 && info.axisY.inpos1 && info.axisZ.inpos1 &&
+								(abs(gInfo.location_req.x-info.axisX.location)<gInfo.location_tolerance) &&
+								(abs(gInfo.location_req.y-info.axisY.location)<gInfo.location_tolerance) &&
+								(abs(gInfo.location_req.z-info.axisZ.location)<gInfo.location_tolerance)) {
+									gInfo.location_done = SRV_SUCCESS;
+									funcState = FunctionState::IDLE;
+								} else {
+									funcState = FunctionState::DONE;
+								}
+							} else {
+								if (info.axisX.eos && info.axisY.eos && info.axisZ.eos &&
+								info.axisX.inpos1 && info.axisY.inpos1 && info.axisZ.inpos1 &&
+								(abs(M_TO_MM(gInfo.location_req.x-info.axisX.location))<gInfo.location_tolerance) &&
+								(abs(M_TO_MM(gInfo.location_req.y-info.axisY.location))<gInfo.location_tolerance) &&
+								(abs(M_TO_MM(gInfo.location_req.z-info.axisZ.location))<gInfo.location_tolerance)) {
+									gInfo.location_done = SRV_SUCCESS;
+									funcState = FunctionState::IDLE;
+								} else {
+									funcState = FunctionState::DONE;
+								}
+							}
+						} else {
+							gInfo.location_done = SRV_FAIL;
+							reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : CommandState::LOCATION FunctionState::ERROR-> occured\n", __FILENAME__, __FUNCTION__, __LINE__);
+							cmdState = CommandState::ERROR;
+						}
+#else
+						funcState = FunctionState::IDLE;
+#endif
+					break;
+					case FunctionState::IDLE:
+						cmdState = CommandState::IDLE;
+						funcState = FunctionState::IDLE;
+					break;
+					case FunctionState::ERROR:
+						cmdState = CommandState::ERROR;
+					break;
+					default:
+						reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandState::LOCATION FunctionState::UNKNOWN occured\n", __FILENAME__, __FUNCTION__, __LINE__);
 						cmdState = CommandState::ERROR;
 					break;
 				}
@@ -883,9 +788,14 @@ int main(int argc, char* argv[]) {
 						funcState = FunctionState::IDLE;
 					break;
 					case FunctionState::IDLE:
+						cmdState = CommandState::IDLE;
 						funcState = FunctionState::IDLE;
 					break;
 					case FunctionState::ERROR:
+						cmdState = CommandState::ERROR;
+					break;
+					default:
+						reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandState::POSITION FunctionState::UNKNOWN occured\n", __FILENAME__, __FUNCTION__, __LINE__);
 						cmdState = CommandState::ERROR;
 					break;
 				}
@@ -905,11 +815,16 @@ int main(int argc, char* argv[]) {
 						funcState = FunctionState::IDLE;
 					break;
 					case FunctionState::IDLE:
+						cmdState = CommandState::IDLE;
 						funcState = FunctionState::IDLE;
 					break;
 					case FunctionState::ERROR:
 						cmdState = CommandState::ERROR;
 						funcState = FunctionState::INIT;
+					break;
+					default:
+						reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandState::JOG FunctionState::UNKNOWN occured\n", __FILENAME__, __FUNCTION__, __LINE__);
+						cmdState = CommandState::ERROR;
 					break;
 				}
 			break;
@@ -922,15 +837,23 @@ int main(int argc, char* argv[]) {
 						funcState = FunctionState::ACTION;
 					break;
 					case FunctionState::ACTION:
+						setAxisCommandMsg(&queueModbus, axisToId("x"), AxisCommand::stop, OnOff::on);
+						setAxisCommandMsg(&queueModbus, axisToId("y"), AxisCommand::stop, OnOff::on);
+						setAxisCommandMsg(&queueModbus, axisToId("z"), AxisCommand::stop, OnOff::on);
 						funcState = FunctionState::DONE;
 					break;
 					case FunctionState::DONE:
 						funcState = FunctionState::IDLE;
 					break;
 					case FunctionState::IDLE:
+						cmdState = CommandState::IDLE;
 						funcState = FunctionState::IDLE;
 					break;
 					case FunctionState::ERROR:
+						cmdState = CommandState::ERROR;
+					break;
+					default:
+						reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandState::STOP FunctionState::UNKNOWN occured\n", __FILENAME__, __FUNCTION__, __LINE__);
 						cmdState = CommandState::ERROR;
 					break;
 				}
@@ -950,9 +873,14 @@ int main(int argc, char* argv[]) {
 						funcState = FunctionState::IDLE;
 					break;
 					case FunctionState::IDLE:
+						cmdState = CommandState::IDLE;
 						funcState = FunctionState::IDLE;
 					break;
 					case FunctionState::ERROR:
+						cmdState = CommandState::ERROR;
+					break;
+					default:
+						reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandState::IDLE FunctionState::UNKNOWN occured\n", __FILENAME__, __FUNCTION__, __LINE__);
 						cmdState = CommandState::ERROR;
 					break;
 				}
@@ -968,6 +896,9 @@ int main(int argc, char* argv[]) {
 						funcState = FunctionState::ACTION;
 					break;
 					case FunctionState::ACTION:
+						setAxisCommandMsg(&queueModbus, axisToId("x"), AxisCommand::emg, OnOff::on);
+						setAxisCommandMsg(&queueModbus, axisToId("y"), AxisCommand::emg, OnOff::on);
+						setAxisCommandMsg(&queueModbus, axisToId("z"), AxisCommand::emg, OnOff::on);
 						funcState = FunctionState::IDLE;
 					break;
 					case FunctionState::DONE:
@@ -979,7 +910,15 @@ int main(int argc, char* argv[]) {
 					case FunctionState::ERROR:
 						cmdState = CommandState::ERROR;
 					break;
+					default:
+						reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandState::ERROR FunctionState::UNKNOWN occured\n", __FILENAME__, __FUNCTION__, __LINE__);
+						cmdState = CommandState::ERROR;
+					break;
 				}
+			break;
+			default:
+				reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandState::UNKNOWN occured\n", __FILENAME__, __FUNCTION__, __LINE__);
+				cmdState = CommandState::ERROR;
 			break;
 		}
 		gInfo.cmdState = cmdState;
@@ -1036,25 +975,40 @@ void setState() {
 	memset((uint8_t*)&info.state.cmdStateDetail, NULL_CHAR, sizeof(int32_t)*((int32_t)(CommandState::ERROR)+ENUM_MAX_VAL));
 	info.state.cmdState = (int32_t)gInfo.cmdState;
 	switch (gInfo.cmdState) {
-		case CommandState::IDLE:
-			info.state.cmdStateDetail.IDLE = VAL_SET;
+		case CommandState::INIT:
+			info.state.cmdStateDetail.INIT = VAL_SET;
+			info.state.cmdStateString = "INIT";
 		break;
 		case CommandState::HOME:
 			info.state.cmdStateDetail.HOME = VAL_SET;
+			info.state.cmdStateString = "HOME";
 		break;
-		case CommandState::JOG:
-			info.state.cmdStateDetail.JOG = VAL_SET;
+		case CommandState::LOCATION:
+			info.state.cmdStateDetail.POSITION = VAL_SET;
+			info.state.cmdStateString = "LOCATION";
 		break;
 		case CommandState::POSITION:
 			info.state.cmdStateDetail.POSITION = VAL_SET;
+			info.state.cmdStateString = "POSITION";
 		break;
-		case CommandState::INIT:
-			info.state.cmdStateDetail.INIT = VAL_SET;
+		case CommandState::JOG:
+			info.state.cmdStateDetail.JOG = VAL_SET;
+			info.state.cmdStateString = "JOG";
+		break;
+		case CommandState::STOP:
+			info.state.cmdStateDetail.IDLE = VAL_SET;
+			info.state.cmdStateString = "STOP";
+		break;
+		case CommandState::IDLE:
+			info.state.cmdStateDetail.IDLE = VAL_SET;
+			info.state.cmdStateString = "IDLE";
 		break;
 		case CommandState::ERROR:
 			info.state.cmdStateDetail.ERROR = VAL_SET;
+			info.state.cmdStateString = "ERROR";
 		break;
 		default:
+			reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandState::UNKNOWN occured\n", __FILENAME__, __FUNCTION__, __LINE__);
 		break;
 	}
 	memset((uint8_t*)&info.state.funcStateDetail, NULL_CHAR, sizeof(int32_t)*((int32_t)((int32_t)FunctionState::ERROR)+ENUM_MAX_VAL));
@@ -1062,23 +1016,40 @@ void setState() {
 	switch (gInfo.funcState) {
 		case FunctionState::INIT:
 			info.state.funcStateDetail.INIT = VAL_SET;
+			info.state.funcStateString = "INIT";
 		break;
 		case FunctionState::SET:
 			info.state.funcStateDetail.SET = VAL_SET;
+			info.state.funcStateString = "SET";
 		break;
 		case FunctionState::ACTION:
 			info.state.funcStateDetail.ACTION = VAL_SET;
+			info.state.funcStateString = "ACTION";
 		break;
 		case FunctionState::DONE:
 			info.state.funcStateDetail.DONE = VAL_SET;
+			info.state.funcStateString = "DONE";
 		break;
 		case FunctionState::IDLE:
 			info.state.funcStateDetail.IDLE = VAL_SET;
+			info.state.funcStateString = "IDLE";
 		break;
 		case FunctionState::ERROR:
 			info.state.funcStateDetail.ERROR = VAL_SET;
+			info.state.funcStateString = "ERROR";
 		break;
 		default:
+			reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandState::UNKNOWN occured\n", __FILENAME__, __FUNCTION__, __LINE__);
 		break;
 	}
+}
+
+void clearQueueModbus() {
+	std::queue<AxisMsg> empty;
+	std::swap(queueModbus, empty);
+}
+
+void clearQueueCommandState() {
+	std::queue<CommandState> empty;
+	std::swap(queueCommandState, empty);
 }
