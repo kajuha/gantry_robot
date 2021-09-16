@@ -10,7 +10,12 @@
 #include <boost/thread.hpp>
 #include <iostream>
 #include <queue>
+
+#ifndef SIM_MODBUS
 #include <modbus.h>
+#else
+#include "sim_modbus.h"
+#endif
 #include <gantry_robot/Info.h>
 #include <gantry_robot/Position.h>
 #include <gantry_robot/Location.h>
@@ -190,11 +195,11 @@ void modbusLoop(int rate, std::queue<AxisMsg>* queueModbus, ModbusLoopState* mod
 		} else {
 			info.axisX.location = encToUU(gInfo.axis_x_num, info.axisX.position);
 		}
-		// if (!getAxisParameter(ctx, gInfo.axis_x_num, ACT_SPD, &info.axisX.speed)) {
-		// 	reprintf(ScreenOutput::ERROR, "getAxisParameter AXIS_X error\n");
-		// 	gInfo.isError = ERR_SET;
-		// 	gInfo.errorMessage = "getAxisParameter AXIS_X error";
-		// }
+		if (!getAxisParameter(ctx, gInfo.axis_x_num, ACT_SPD, &info.axisX.speed)) {
+			reprintf(ScreenOutput::ERROR, "getAxisParameter AXIS_X error\n");
+			gInfo.isError = ERR_SET;
+			gInfo.errorMessage = "getAxisParameter AXIS_X error";
+		}
 
 		if (!getAxisStatus(ctx, gInfo.axis_y_num, &info.axisY)) {
 			reprintf(ScreenOutput::ERROR, "getAxisStatus AXIS_Y error\n");
@@ -208,11 +213,11 @@ void modbusLoop(int rate, std::queue<AxisMsg>* queueModbus, ModbusLoopState* mod
 		} else {
 			info.axisY.location = encToUU(gInfo.axis_y_num, info.axisY.position);
 		}
-		// if (!getAxisParameter(ctx, gInfo.axis_y_num, ACT_SPD, &info.axisY.speed)) {
-		// 	reprintf(ScreenOutput::ERROR, "getAxisParameter AXIS_Y error\n");
-		// 	gInfo.isError = ERR_SET;
-		// 	gInfo.errorMessage = "getAxisParameter AXIS_Y error";
-		// }
+		if (!getAxisParameter(ctx, gInfo.axis_y_num, ACT_SPD, &info.axisY.speed)) {
+			reprintf(ScreenOutput::ERROR, "getAxisParameter AXIS_Y error\n");
+			gInfo.isError = ERR_SET;
+			gInfo.errorMessage = "getAxisParameter AXIS_Y error";
+		}
 
 		if (!getAxisStatus(ctx, gInfo.axis_z_num, &info.axisZ)) {
 			reprintf(ScreenOutput::ERROR, "getAxisStatus AXIS_Z error\n");
@@ -226,11 +231,11 @@ void modbusLoop(int rate, std::queue<AxisMsg>* queueModbus, ModbusLoopState* mod
 		} else {
 			info.axisZ.location = encToUU(gInfo.axis_z_num, info.axisZ.position);
 		}
-		// if (!getAxisParameter(ctx, gInfo.axis_z_num, ACT_SPD, &info.axisZ.speed)) {
-		// 	reprintf(ScreenOutput::ERROR, "getAxisParameter AXIS_Z error\n");
-		// 	gInfo.isError = ERR_SET;
-		// 	gInfo.errorMessage = "getAxisParameter AXIS_Z error";
-		// }
+		if (!getAxisParameter(ctx, gInfo.axis_z_num, ACT_SPD, &info.axisZ.speed)) {
+			reprintf(ScreenOutput::ERROR, "getAxisParameter AXIS_Z error\n");
+			gInfo.isError = ERR_SET;
+			gInfo.errorMessage = "getAxisParameter AXIS_Z error";
+		}
 
 		ts_now = ros::Time::now();
         info.header.stamp = ts_now;
@@ -383,6 +388,7 @@ int main(int argc, char* argv[]) {
     // ros::ServiceServer service_homing = nh.advertiseService("gantry_robot_homing", serviceHomingCallback);
     ros::ServiceServer service_command = nh.advertiseService("gantry_robot_command", serviceCommandCallback);
     ros::ServiceServer service_location = nh.advertiseService("gantry_robot_location", serviceLocationCallback);
+    ros::ServiceClient client_done = nh.serviceClient<gantry_robot::Command>("/gantry_robot/gantry_robot_done");
 
 #ifdef YAPPER_ENABLE
     ros::Subscriber yapper_local_sub = nh.subscribe("/yapper_local/yapIn_topic", 100, yapLocalCallBack);
@@ -393,6 +399,8 @@ int main(int argc, char* argv[]) {
     int main_hz = 1000;
 	AxisMsg axisMsg;
     boost::thread threadModbusLoop(modbusLoop, main_hz, &queueModbus, &modbusLoopState, &pub_info, ctx);
+
+	gantry_robot::Command done_srv;
 
 	double position_x, position_y, position_z, speed_x, speed_y, speed_z, acc_x, acc_y, acc_z, dec_x, dec_y, dec_z;
 	double position, speed, acc, dec;
@@ -522,6 +530,8 @@ int main(int argc, char* argv[]) {
 						reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandState::INIT FunctionState::DONE success\n",
 									__FILENAME__, __FUNCTION__, __LINE__);
 						funcState = FunctionState::IDLE;
+						done_srv.request.command = (int32_t)CommandState::LOCATION;
+						client_done.call(done_srv);
 					break;
 					case FunctionState::IDLE:
 						if (info.axisX.org && info.axisY.org && info.axisZ.org) {

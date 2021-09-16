@@ -1,4 +1,8 @@
+#ifndef SIM_MODBUS
 #include <modbus.h>
+#else
+#include "sim_modbus.h"
+#endif
 #include <string.h>
 #include <stdio.h>
 #include <queue>

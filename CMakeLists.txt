@@ -1,7 +1,11 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(gantry_robot)
 
-set(YAPPER_ENABLE TRUE)
+set(SIM_MODBUS TRUE)
+if(${SIM_MODBUS})
+  add_definitions(-DSIM_MODBUS)
+endif()
+set(YAPPER_ENABLE FALSE)
 if(${YAPPER_ENABLE})
   set(YAPP yapper)
   add_definitions(-DYAPPER_ENABLE)
@@ -161,7 +165,7 @@ include_directories(
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/gantry_robot_node.cpp)
-add_executable(gantry_robot src/main.cpp src/L7P.cpp src/ObjectDictionary.cpp src/deprecated.cpp src/yapper.cpp)
+add_executable(gantry_robot src/main.cpp src/L7P.cpp src/ObjectDictionary.cpp src/deprecated.cpp src/yapper.cpp src/sim_modbus.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the

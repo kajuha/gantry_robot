@@ -4,7 +4,11 @@
 #include <gantry_robot/Location.h>
 #include <gantry_robot/Command.h>
 
+#ifndef SIM_MODBUS
 #include <modbus.h>
+#else
+#include "sim_modbus.h"
+#endif
 #include <queue>
 
 #define Q_STOP_DECELERATION_ADDR    0x6034

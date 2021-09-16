@@ -1,6 +1,10 @@
 #pragma once
 
+#ifndef SIM_MODBUS
 #include <modbus.h>
+#else
+#include "sim_modbus.h"
+#endif
 
 #include "L7P.h"
 
