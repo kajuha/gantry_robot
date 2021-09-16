@@ -42,7 +42,7 @@ bool serviceLocationCallback(gantry_robot::Location::Request &req, gantry_robot:
 
 	res.success = SRV_SUCCESS;
 
-	reprintf(ScreenOutput::ALWAYS, "[%s{%s}(%d)]\n", __FILENAME__, __FUNCTION__, __LINE__);
+	// reprintf(ScreenOutput::ALWAYS, "[%s{%s}(%d)]\n", __FILENAME__, __FUNCTION__, __LINE__);
 
     return true;
 }
@@ -111,7 +111,7 @@ void modbusLoop(int rate, std::queue<AxisMsg>* queueModbus, ModbusLoopState* mod
 			axisMsg = queueModbus->front();
 			switch(axisMsg.type) {
 				case CommandType::setCommand:
-					reprintf(ScreenOutput::ALWAYS, "[%s{%s}(%d)] : CommandType::setCommand\n", __FILENAME__, __FUNCTION__, __LINE__);
+					// reprintf(ScreenOutput::ALWAYS, "[%s{%s}(%d)] : CommandType::setCommand\n", __FILENAME__, __FUNCTION__, __LINE__);
 					if (!setAxisCommand(ctx, axisMsg.id, axisMsg.axisCommand, axisMsg.onOff)) {
 						reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : setAxisCommand error\n", __FILENAME__, __FUNCTION__, __LINE__);
 						gInfo.isError = ERR_SET;
@@ -130,7 +130,7 @@ void modbusLoop(int rate, std::queue<AxisMsg>* queueModbus, ModbusLoopState* mod
 					reprintf(ScreenOutput::NO, "[%s{%s}(%d)] : CommandType::getParameter\n", __FILENAME__, __FUNCTION__, __LINE__);
 				break;
 				case CommandType::setHomingParameters:
-					reprintf(ScreenOutput::NO, "[%s{%s}(%d)] : CommandType::setHomingParameters\n", __FILENAME__, __FUNCTION__, __LINE__);
+					// reprintf(ScreenOutput::NO, "[%s{%s}(%d)] : CommandType::setHomingParameters\n", __FILENAME__, __FUNCTION__, __LINE__);
 					if (!setHomingParameters(ctx, axisMsg.id, axisMsg.speed, axisMsg.offset, axisMsg.done_behaviour)) {
 						reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : setHomingParameters error\n", __FILENAME__, __FUNCTION__, __LINE__);
 						gInfo.isError = ERR_SET;
@@ -140,7 +140,7 @@ void modbusLoop(int rate, std::queue<AxisMsg>* queueModbus, ModbusLoopState* mod
 					}
 				break;
 				case CommandType::setJogParameters:
-					reprintf(ScreenOutput::NO, "[%s{%s}(%d)] : CommandType::setJogParameters\n", __FILENAME__, __FUNCTION__, __LINE__);
+					// reprintf(ScreenOutput::NO, "[%s{%s}(%d)] : CommandType::setJogParameters\n", __FILENAME__, __FUNCTION__, __LINE__);
 					if (!setJogParameters(ctx, axisMsg.id, axisMsg.speed, axisMsg.acc, axisMsg.dec, axisMsg.s_curve, axisMsg.servo_lock)) {
 						reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : setJogParameters error\n", __FILENAME__, __FUNCTION__, __LINE__);
 						gInfo.isError = ERR_SET;
@@ -150,7 +150,7 @@ void modbusLoop(int rate, std::queue<AxisMsg>* queueModbus, ModbusLoopState* mod
 					}
 				break;
 				case CommandType::setPosParameters:
-					reprintf(ScreenOutput::NO, "[%s{%s}(%d)] : CommandType::setPosParameters\n", __FILENAME__, __FUNCTION__, __LINE__);
+					// reprintf(ScreenOutput::NO, "[%s{%s}(%d)] : CommandType::setPosParameters\n", __FILENAME__, __FUNCTION__, __LINE__);
 					if (!setPosParameters(ctx, axisMsg.id)) {
 						reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : setPosParameters error\n", __FILENAME__, __FUNCTION__, __LINE__);
 						gInfo.isError = ERR_SET;
@@ -160,7 +160,7 @@ void modbusLoop(int rate, std::queue<AxisMsg>* queueModbus, ModbusLoopState* mod
 					}
 				break;
 				case CommandType::setPosition:
-					reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandType::setPosition\n", __FILENAME__, __FUNCTION__, __LINE__);
+					// reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandType::setPosition\n", __FILENAME__, __FUNCTION__, __LINE__);
 					if (!setPosition(ctx, axisMsg.id, axisMsg.position, axisMsg.speed, axisMsg.acc, axisMsg.dec)) {
 						reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : setPosition error\n", __FILENAME__, __FUNCTION__, __LINE__);
 						gInfo.isError = ERR_SET;
@@ -378,11 +378,9 @@ int main(int argc, char* argv[]) {
 	// printf("modbus_get_byte_timeout: %ld, %ld\n", byte_timeout.tv_sec, byte_timeout.tv_usec);
 	// modbus_test_end
 
-    // ros::ServiceServer service_position = nh.advertiseService("gantry_robot_position", servicePositionCallback);
-    // ros::ServiceServer service_homing = nh.advertiseService("gantry_robot_homing", serviceHomingCallback);
-    ros::ServiceServer service_command = nh.advertiseService("gantry_robot_command", serviceCommandCallback);
-    ros::ServiceServer service_location = nh.advertiseService("gantry_robot_location", serviceLocationCallback);
-    ros::ServiceClient client_done = nh.serviceClient<gantry_robot::Command>("/test_gantry_robot/gantry_robot_done");
+    ros::ServiceServer service_command = nh.advertiseService("/gantry_robot/gantry_robot_command", serviceCommandCallback);
+    ros::ServiceServer service_location = nh.advertiseService("/gantry_robot/gantry_robot_location", serviceLocationCallback);
+    ros::ServiceClient client_done = nh.serviceClient<gantry_robot::Command>("/gantry_robot/gantry_robot_done");
 
 #ifdef YAPPER_ENABLE
     ros::Subscriber yapper_local_sub = nh.subscribe("/yapper_local/yapIn_topic", 100, yapLocalCallBack);
@@ -407,7 +405,7 @@ int main(int argc, char* argv[]) {
 	double ts_diff;
 	double ts_elap;
 
-#define MAIN_HZ	1
+#define MAIN_HZ	10
 	ros::Rate r(MAIN_HZ);
 
 	ts_run = ros::Time::now().toSec();
@@ -866,7 +864,10 @@ int main(int argc, char* argv[]) {
 						funcState = FunctionState::DONE;
 					break;
 					case FunctionState::DONE:
+						reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandState::STOP FunctionState::DONE stop success\n", __FILENAME__, __FUNCTION__, __LINE__);
 						funcState = FunctionState::IDLE;
+						done_srv.request.command = (int32_t)CommandState::STOP;
+						client_done.call(done_srv);
 					break;
 					case FunctionState::IDLE:
 						cmdState = CommandState::IDLE;
@@ -924,10 +925,13 @@ int main(int argc, char* argv[]) {
 						setAxisCommandMsg(&queueModbus, axisToId("x"), AxisCommand::emg, OnOff::on);
 						setAxisCommandMsg(&queueModbus, axisToId("y"), AxisCommand::emg, OnOff::on);
 						setAxisCommandMsg(&queueModbus, axisToId("z"), AxisCommand::emg, OnOff::on);
-						funcState = FunctionState::IDLE;
+						funcState = FunctionState::DONE;
 					break;
 					case FunctionState::DONE:
+						reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandState::ERROR FunctionState::DONE e-stop success\n", __FILENAME__, __FUNCTION__, __LINE__);
 						funcState = FunctionState::IDLE;
+						done_srv.request.command = (int32_t)CommandState::ERROR;
+						client_done.call(done_srv);
 					break;
 					case FunctionState::IDLE:
 						funcState = FunctionState::IDLE;
