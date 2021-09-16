@@ -2,6 +2,7 @@
   <arg name="message_display" default="screen" doc="output type"/>
   <arg name="node_name" default="gantry_robot" doc="node name"/>
   <arg name="serial_port" doc="serial port"/>
+  <arg name="serial_baudrate" doc="serial baudrate" />
     
   <arg name="axis_x_num" doc="axis_x_num"/>
   <arg name="axis_y_num" doc="axis_y_num"/>
@@ -46,7 +47,7 @@
     <param name="node_name" value="$(arg node_name)"/>
 
     <param name="serial_port" value="$(arg serial_port)"/>
-    <param name="baud_rate" value="57600"/>
+    <param name="serial_baudrate" value="$(arg serial_baudrate)"/>
     
     <param name="axis_x_num" value="$(arg axis_x_num)"/>
     <param name="axis_y_num" value="$(arg axis_y_num)"/>

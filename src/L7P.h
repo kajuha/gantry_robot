@@ -109,7 +109,7 @@ public:
     std::string node_name;
 
     std::string serial_port;
-    int32_t baud_rate;
+    int32_t serial_baudrate;
 
     // service timeout
     double srv_timeout_sec; // sec

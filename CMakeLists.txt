@@ -163,7 +163,11 @@ include_directories(
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/gantry_robot_node.cpp)
+if(${SIM_MODBUS})
 add_executable(gantry_robot src/main.cpp src/L7P.cpp src/ObjectDictionary.cpp src/yapper.cpp src/sim_modbus.cpp)
+else()
+add_executable(gantry_robot src/main.cpp src/L7P.cpp src/ObjectDictionary.cpp src/yapper.cpp)
+endif()
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the

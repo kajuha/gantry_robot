@@ -17,9 +17,7 @@
 #include "sim_modbus.h"
 #endif
 #include <gantry_robot/Info.h>
-#include <gantry_robot/Position.h>
 #include <gantry_robot/Location.h>
-#include <gantry_robot/Homing.h>
 #include <gantry_robot/Command.h>
 #ifdef YAPPER_ENABLE
 #include <yapper/YapIn.h>
@@ -113,7 +111,7 @@ void modbusLoop(int rate, std::queue<AxisMsg>* queueModbus, ModbusLoopState* mod
 			axisMsg = queueModbus->front();
 			switch(axisMsg.type) {
 				case CommandType::setCommand:
-					reprintf(ScreenOutput::NO, "[%s{%s}(%d)] : CommandType::setCommand\n", __FILENAME__, __FUNCTION__, __LINE__);
+					reprintf(ScreenOutput::ALWAYS, "[%s{%s}(%d)] : CommandType::setCommand\n", __FILENAME__, __FUNCTION__, __LINE__);
 					if (!setAxisCommand(ctx, axisMsg.id, axisMsg.axisCommand, axisMsg.onOff)) {
 						reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : setAxisCommand error\n", __FILENAME__, __FUNCTION__, __LINE__);
 						gInfo.isError = ERR_SET;
@@ -191,11 +189,11 @@ void modbusLoop(int rate, std::queue<AxisMsg>* queueModbus, ModbusLoopState* mod
 		} else {
 			info.axisX.location = encToUU(gInfo.axis_x_num, info.axisX.position);
 		}
-		if (!getAxisParameter(ctx, gInfo.axis_x_num, ACT_SPD, &info.axisX.speed)) {
-			reprintf(ScreenOutput::ERROR, "getAxisParameter AXIS_X error\n");
-			gInfo.isError = ERR_SET;
-			gInfo.errorMessage = "getAxisParameter AXIS_X error";
-		}
+		// if (!getAxisParameter(ctx, gInfo.axis_x_num, ACT_SPD, &info.axisX.speed)) {
+		// 	reprintf(ScreenOutput::ERROR, "getAxisParameter AXIS_X error\n");
+		// 	gInfo.isError = ERR_SET;
+		// 	gInfo.errorMessage = "getAxisParameter AXIS_X error";
+		// }
 
 		if (!getAxisStatus(ctx, gInfo.axis_y_num, &info.axisY)) {
 			reprintf(ScreenOutput::ERROR, "getAxisStatus AXIS_Y error\n");
@@ -209,11 +207,11 @@ void modbusLoop(int rate, std::queue<AxisMsg>* queueModbus, ModbusLoopState* mod
 		} else {
 			info.axisY.location = encToUU(gInfo.axis_y_num, info.axisY.position);
 		}
-		if (!getAxisParameter(ctx, gInfo.axis_y_num, ACT_SPD, &info.axisY.speed)) {
-			reprintf(ScreenOutput::ERROR, "getAxisParameter AXIS_Y error\n");
-			gInfo.isError = ERR_SET;
-			gInfo.errorMessage = "getAxisParameter AXIS_Y error";
-		}
+		// if (!getAxisParameter(ctx, gInfo.axis_y_num, ACT_SPD, &info.axisY.speed)) {
+		// 	reprintf(ScreenOutput::ERROR, "getAxisParameter AXIS_Y error\n");
+		// 	gInfo.isError = ERR_SET;
+		// 	gInfo.errorMessage = "getAxisParameter AXIS_Y error";
+		// }
 
 		if (!getAxisStatus(ctx, gInfo.axis_z_num, &info.axisZ)) {
 			reprintf(ScreenOutput::ERROR, "getAxisStatus AXIS_Z error\n");
@@ -227,11 +225,11 @@ void modbusLoop(int rate, std::queue<AxisMsg>* queueModbus, ModbusLoopState* mod
 		} else {
 			info.axisZ.location = encToUU(gInfo.axis_z_num, info.axisZ.position);
 		}
-		if (!getAxisParameter(ctx, gInfo.axis_z_num, ACT_SPD, &info.axisZ.speed)) {
-			reprintf(ScreenOutput::ERROR, "getAxisParameter AXIS_Z error\n");
-			gInfo.isError = ERR_SET;
-			gInfo.errorMessage = "getAxisParameter AXIS_Z error";
-		}
+		// if (!getAxisParameter(ctx, gInfo.axis_z_num, ACT_SPD, &info.axisZ.speed)) {
+		// 	reprintf(ScreenOutput::ERROR, "getAxisParameter AXIS_Z error\n");
+		// 	gInfo.isError = ERR_SET;
+		// 	gInfo.errorMessage = "getAxisParameter AXIS_Z error";
+		// }
 
 		ts_now = ros::Time::now();
         info.header.stamp = ts_now;
@@ -263,11 +261,11 @@ int main(int argc, char* argv[]) {
 	// test ros::param::get vs nh.getParam
 	ros::param::get("~node_name", node_name);
 	ros::param::get("~serial_port", serial_port);
-	ros::param::get("~baud_rate", baud_rate);
+	ros::param::get("~serial_baudrate", serial_baudrate);
 #else
     nh.getParam("node_name", gInfo.node_name);
     nh.getParam("serial_port", gInfo.serial_port);
-    nh.getParam("baud_rate", gInfo.baud_rate);
+    nh.getParam("serial_baudrate", gInfo.serial_baudrate);
     nh.getParam("axis_x_num", gInfo.axis_x_num);
     nh.getParam("axis_y_num", gInfo.axis_y_num);
     nh.getParam("axis_z_num", gInfo.axis_z_num);
@@ -332,7 +330,7 @@ int main(int argc, char* argv[]) {
 
 	modbus_t* ctx;
 
-	ctx = modbus_new_rtu(gInfo.serial_port.c_str(), gInfo.baud_rate, 'N', 8, 1);
+	ctx = modbus_new_rtu(gInfo.serial_port.c_str(), gInfo.serial_baudrate, 'N', 8, 1);
 
 	// modbus_new_rtu return
 	// pointer : successful
@@ -344,7 +342,7 @@ int main(int argc, char* argv[]) {
 		return -1;
 	} else {
 		reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : serial port : %s, baudrate : %d open success\n",
-			__FILENAME__, __FUNCTION__, __LINE__, gInfo.serial_port.c_str(), gInfo.baud_rate);
+			__FILENAME__, __FUNCTION__, __LINE__, gInfo.serial_port.c_str(), gInfo.serial_baudrate);
 	}
 
 	// modbus_set_slave return

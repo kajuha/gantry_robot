@@ -5,6 +5,7 @@
         <arg name="node_name" value="gantry_robot"/>
 
         <arg name="serial_port" value="/dev/ttyUSB0" />
+        <arg name="serial_baudrate" value="57600" />
     
         <arg name="axis_x_num" value="11" />
         <arg name="axis_y_num" value="12" />
