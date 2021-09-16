@@ -1,6 +1,7 @@
 <launch>
-	<include file="$(find gantry_robot)/launch/base.launch">
-        <arg name="message_display" value="screen"/>
+    <arg name="message_display" default="screen" doc="output type"/>
+    <include file="$(find gantry_robot)/launch/base.launch">
+        <arg name="message_display" value="$(arg message_display)"/>
         <arg name="node_name" value="gantry_robot"/>
 
         <arg name="serial_port" value="/dev/ttyUSB0" />

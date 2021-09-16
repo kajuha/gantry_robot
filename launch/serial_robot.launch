@@ -1,10 +1,11 @@
 <launch>
-	<include file="$(find gantry_robot)/launch/base.launch">
-        <arg name="message_display" value="screen"/>
+    <arg name="message_display" default="screen" doc="output type"/>
+    <include file="$(find gantry_robot)/launch/base.launch">
+        <arg name="message_display" value="$(arg message_display)"/>
         <arg name="node_name" value="serial_robot"/>
 
         <arg name="serial_port" value="/dev/ttyUSB0" />
-    
+
         <arg name="axis_x_num" value="11" />
         <arg name="axis_y_num" value="12" />
         <arg name="axis_z_num" value="13" />
@@ -43,5 +44,5 @@
 
         <arg name="srv_timeout_sec" value="60.0"/>
         <arg name="location_tolerance" value="1.0"/> <!-- 단위: deg -->
-	</include>
+    </include>
 </launch>

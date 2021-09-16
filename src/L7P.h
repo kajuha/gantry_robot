@@ -56,7 +56,7 @@ enum class AxisState {
 };
 
 enum class CommandState {
-	INIT, HOME, LOCATION, POSITION, JOG, STOP, IDLE, ERROR
+	INIT, HOME, LOCATION, POSITION, JOG, STOP, IDLE, ERROR, NOT_SET=-1
 };
 
 enum class FunctionState {
@@ -117,13 +117,9 @@ public:
 
     // service command
     gantry_robot::Command::Request command_req;
-    gantry_robot::Command::Response command_res;
-    int32_t command_done;
 
     // service location
     gantry_robot::Location::Request location_req;
-    gantry_robot::Location::Response location_res;
-    int32_t location_done;
 
     // ERROR
     int32_t isError;
@@ -191,6 +187,10 @@ public:
     int32_t pos_action_val;
     double pos_speed_val;
     double pos_acc_dec_val;
+    
+    GlobalInfo() {
+        command_req.command = (int32_t)CommandState::NOT_SET;
+    }
 };
 
 int32_t axisToId(std::string axis);

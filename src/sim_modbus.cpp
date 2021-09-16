@@ -96,10 +96,10 @@ int modbus_read_registers(modbus_t *ctx, int addr, int nb, uint16_t *dest) {
     // printf("modbus_read_registers [id:%d] [addr:0x%04x] [nb:%d]\n", g_slave, addr, nb);
     switch (addr) {
         case ACT_POS:
-            *((int32_t*)dest) = g_slave;
+            *((int32_t*)dest) = 0;
         break;
         case ACT_SPD:
-            *((int32_t*)dest) = g_slave + 10;
+            *((int32_t*)dest) = 0;
         break;
         case Q_STOP_DECELERATION_ADDR:
             *((int32_t*)dest) = g_Q_STOP_DECELERATION_VAL;
@@ -198,6 +198,10 @@ int modbus_write_bit(modbus_t *ctx, int addr, int status) {
         case (int)AxisCommand::stop:
         break;
         case (int)AxisCommand::sv_on:
+        break;
+        case (int)AxisCommand::start:
+        break;
+        case (int)AxisCommand::hstart:
         break;
         default:
             printf("modbus_write_bit unknown switch-case [addr:0x%x]\n", addr);

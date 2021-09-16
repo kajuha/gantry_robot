@@ -40,18 +40,9 @@ bool serviceLocationCallback(gantry_robot::Location::Request &req, gantry_robot:
     ros::Time time = ros::Time::now();
 
 	gInfo.location_req = req;
-	// gInfo.location_done = SRV_CHECKING;
-	gInfo.location_done = SRV_SUCCESS;
-
 	queueCommandState.push(CommandState::LOCATION);
 
-	// ros::Rate r(1);
-	// while (ros::ok() && gInfo.location_done==SRV_CHECKING) {
-	// 	printf("test%lf\n", ros::Time::now().toSec());
-	// 	r.sleep();
-	// }
-
-	res.success = gInfo.location_done;
+	res.success = SRV_SUCCESS;
 
 	reprintf(ScreenOutput::ALWAYS, "[%s{%s}(%d)]\n", __FILENAME__, __FUNCTION__, __LINE__);
 
@@ -60,6 +51,8 @@ bool serviceLocationCallback(gantry_robot::Location::Request &req, gantry_robot:
 
 bool serviceCommandCallback(gantry_robot::Command::Request &req, gantry_robot::Command::Response &res) {
     ros::Time time = ros::Time::now();
+
+	gInfo.command_req = req;
 
 	switch (req.command) {
 		case (int32_t)CommandState::INIT:
@@ -70,12 +63,15 @@ bool serviceCommandCallback(gantry_robot::Command::Request &req, gantry_robot::C
 		break;
 		case (int32_t)CommandState::LOCATION:
 			// queueCommandState.push(CommandState::LOCATION);
+			reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandState::LOCATION unavailable\n", __FILENAME__, __FUNCTION__, __LINE__);
 		break;
 		case (int32_t)CommandState::POSITION:
 			// queueCommandState.push(CommandState::POSITION);
+			reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandState::POSITION unavailable\n", __FILENAME__, __FUNCTION__, __LINE__);
 		break;
 		case (int32_t)CommandState::JOG:
 			// queueCommandState.push(CommandState::JOG);
+			reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandState::JOG unavailable\n", __FILENAME__, __FUNCTION__, __LINE__);
 		break;
 		case (int32_t)CommandState::STOP:
 			queueCommandState.push(CommandState::STOP);
@@ -88,6 +84,7 @@ bool serviceCommandCallback(gantry_robot::Command::Request &req, gantry_robot::C
 		break;
 		default:
 			reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandState::UNKNOWN occured\n", __FILENAME__, __FUNCTION__, __LINE__);
+			while(ros::ok());
 		break;
 	}
 
@@ -176,6 +173,7 @@ void modbusLoop(int rate, std::queue<AxisMsg>* queueModbus, ModbusLoopState* mod
 				break;
 				default:
 					reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandType::UNKNOWN occured\n", __FILENAME__, __FUNCTION__, __LINE__);
+					while(ros::ok());
 				break;
 			}
 		} else {
@@ -386,7 +384,7 @@ int main(int argc, char* argv[]) {
     // ros::ServiceServer service_homing = nh.advertiseService("gantry_robot_homing", serviceHomingCallback);
     ros::ServiceServer service_command = nh.advertiseService("gantry_robot_command", serviceCommandCallback);
     ros::ServiceServer service_location = nh.advertiseService("gantry_robot_location", serviceLocationCallback);
-    ros::ServiceClient client_done = nh.serviceClient<gantry_robot::Command>("/gantry_robot/gantry_robot_done");
+    ros::ServiceClient client_done = nh.serviceClient<gantry_robot::Command>("/test_gantry_robot/gantry_robot_done");
 
 #ifdef YAPPER_ENABLE
     ros::Subscriber yapper_local_sub = nh.subscribe("/yapper_local/yapIn_topic", 100, yapLocalCallBack);
@@ -394,9 +392,9 @@ int main(int argc, char* argv[]) {
 
     ros::Publisher pub_info = nh.advertise<gantry_robot::Info>("gantry_robot_info", 100);
 
-    int main_hz = 1000;
+#define MODBUS_HZ	1000
 	AxisMsg axisMsg;
-    boost::thread threadModbusLoop(modbusLoop, main_hz, &queueModbus, &modbusLoopState, &pub_info, ctx);
+    boost::thread threadModbusLoop(modbusLoop, MODBUS_HZ, &queueModbus, &modbusLoopState, &pub_info, ctx);
 
 	gantry_robot::Command done_srv;
 
@@ -411,7 +409,8 @@ int main(int argc, char* argv[]) {
 	double ts_diff;
 	double ts_elap;
 
-	ros::Rate r(1000);
+#define MAIN_HZ	1
+	ros::Rate r(MAIN_HZ);
 
 	ts_run = ros::Time::now().toSec();
 	ts_pre = ts_cur = ts_run;
@@ -429,7 +428,7 @@ int main(int argc, char* argv[]) {
 			// queueCommandState.pop();
 			clearQueueCommandState();
 			funcState = FunctionState::INIT;
-			reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandState::%d FunctionState::%d\n", __FILENAME__, __FUNCTION__, __LINE__, (int32_t)cmdState, (int32_t)funcState);
+			// reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandState::%d FunctionState::%d\n", __FILENAME__, __FUNCTION__, __LINE__, (int32_t)cmdState, (int32_t)funcState);
 		} else if (cmdState != cmdStatePre) {// 내부 스테이트에 변화가 있을 경우
 			funcState = FunctionState::INIT;
 		} else {
@@ -454,6 +453,7 @@ int main(int argc, char* argv[]) {
 						} else if (ts_elap > TS_ELAPSE_ERROR){
 							reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandState::INIT FunctionState::SET fail\n", __FILENAME__, __FUNCTION__, __LINE__);
 							cmdState = CommandState::ERROR;
+						} else {
 						}
 					break;
 					case FunctionState::ACTION:
@@ -521,6 +521,7 @@ int main(int argc, char* argv[]) {
 							default:
 								reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandState::INIT FunctionState::ACTION FunctionState::UNKNOWN occured\n", __FILENAME__, __FUNCTION__, __LINE__);
 								cmdState = CommandState::ERROR;
+								while(ros::ok());
 							break;
 						}
 					break;
@@ -528,8 +529,10 @@ int main(int argc, char* argv[]) {
 						reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandState::INIT FunctionState::DONE success\n",
 									__FILENAME__, __FUNCTION__, __LINE__);
 						funcState = FunctionState::IDLE;
-						done_srv.request.command = (int32_t)CommandState::LOCATION;
-						client_done.call(done_srv);
+						if (gInfo.command_req.command == (int32_t)CommandState::INIT) {
+							done_srv.request.command = (int32_t)CommandState::INIT;
+							client_done.call(done_srv);
+						}
 					break;
 					case FunctionState::IDLE:
 						if (info.axisX.org && info.axisY.org && info.axisZ.org) {
@@ -545,6 +548,7 @@ int main(int argc, char* argv[]) {
 					default:
 						reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandState::INIT FunctionState::UNKNOWN occured\n", __FILENAME__, __FUNCTION__, __LINE__);
 						cmdState = CommandState::ERROR;
+						while(ros::ok());
 					break;
 				}
 			break;
@@ -639,6 +643,16 @@ int main(int argc, char* argv[]) {
 					case FunctionState::DONE:
 						reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandState::HOME FunctionState::DONE homing done\n", __FILENAME__, __FUNCTION__, __LINE__);
 						funcState = FunctionState::IDLE;
+						if (gInfo.command_req.command == (int32_t)CommandState::INIT) {
+							done_srv.request.command = (int32_t)CommandState::INIT;
+							client_done.call(done_srv);
+						} else if (gInfo.command_req.command == (int32_t)CommandState::HOME) {
+							done_srv.request.command = (int32_t)CommandState::HOME;
+							client_done.call(done_srv);
+						} else {
+							reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandState::HOME FunctionState::DONE Unknown Else\n", __FILENAME__, __FUNCTION__, __LINE__);
+							while(ros::ok());
+						}
 					break;
 					case FunctionState::IDLE:
 						cmdState = CommandState::IDLE;
@@ -739,28 +753,29 @@ int main(int argc, char* argv[]) {
 							if (gInfo.node_name == "serial_robot") {
 								if (info.axisX.eos && info.axisY.eos && info.axisZ.eos &&
 								info.axisX.inpos1 && info.axisY.inpos1 && info.axisZ.inpos1 &&
-								(abs(gInfo.location_req.x-info.axisX.location)<gInfo.location_tolerance) &&
-								(abs(gInfo.location_req.y-info.axisY.location)<gInfo.location_tolerance) &&
-								(abs(gInfo.location_req.z-info.axisZ.location)<gInfo.location_tolerance)) {
-									gInfo.location_done = SRV_SUCCESS;
+								(std::abs(gInfo.location_req.x-info.axisX.location)<gInfo.location_tolerance) &&
+								(std::abs(gInfo.location_req.y-info.axisY.location)<gInfo.location_tolerance) &&
+								(std::abs(gInfo.location_req.z-info.axisZ.location)<gInfo.location_tolerance)) {
 									funcState = FunctionState::IDLE;
+									done_srv.request.command = (int32_t)CommandState::LOCATION;
+									client_done.call(done_srv);
 								} else {
 									funcState = FunctionState::DONE;
 								}
 							} else {
 								if (info.axisX.eos && info.axisY.eos && info.axisZ.eos &&
 								info.axisX.inpos1 && info.axisY.inpos1 && info.axisZ.inpos1 &&
-								(abs(M_TO_MM(gInfo.location_req.x-info.axisX.location))<gInfo.location_tolerance) &&
-								(abs(M_TO_MM(gInfo.location_req.y-info.axisY.location))<gInfo.location_tolerance) &&
-								(abs(M_TO_MM(gInfo.location_req.z-info.axisZ.location))<gInfo.location_tolerance)) {
-									gInfo.location_done = SRV_SUCCESS;
+								(std::abs(M_TO_MM(gInfo.location_req.x-info.axisX.location))<gInfo.location_tolerance) &&
+								(std::abs(M_TO_MM(gInfo.location_req.y-info.axisY.location))<gInfo.location_tolerance) &&
+								(std::abs(M_TO_MM(gInfo.location_req.z-info.axisZ.location))<gInfo.location_tolerance)) {
 									funcState = FunctionState::IDLE;
+									done_srv.request.command = (int32_t)CommandState::LOCATION;
+									client_done.call(done_srv);
 								} else {
 									funcState = FunctionState::DONE;
 								}
 							}
 						} else {
-							gInfo.location_done = SRV_FAIL;
 							reprintf(ScreenOutput::ERROR, "[%s{%s}(%d)] : CommandState::LOCATION FunctionState::ERROR-> occured\n", __FILENAME__, __FUNCTION__, __LINE__);
 							cmdState = CommandState::ERROR;
 						}
@@ -805,6 +820,7 @@ int main(int argc, char* argv[]) {
 					default:
 						reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandState::POSITION FunctionState::UNKNOWN occured\n", __FILENAME__, __FUNCTION__, __LINE__);
 						cmdState = CommandState::ERROR;
+						while(ros::ok());
 					break;
 				}
 			break;
@@ -833,6 +849,7 @@ int main(int argc, char* argv[]) {
 					default:
 						reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandState::JOG FunctionState::UNKNOWN occured\n", __FILENAME__, __FUNCTION__, __LINE__);
 						cmdState = CommandState::ERROR;
+						while(ros::ok());
 					break;
 				}
 			break;
@@ -863,6 +880,7 @@ int main(int argc, char* argv[]) {
 					default:
 						reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandState::STOP FunctionState::UNKNOWN occured\n", __FILENAME__, __FUNCTION__, __LINE__);
 						cmdState = CommandState::ERROR;
+						while(ros::ok());
 					break;
 				}
 			break;
@@ -890,6 +908,7 @@ int main(int argc, char* argv[]) {
 					default:
 						reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandState::IDLE FunctionState::UNKNOWN occured\n", __FILENAME__, __FUNCTION__, __LINE__);
 						cmdState = CommandState::ERROR;
+						while(ros::ok());
 					break;
 				}
 			break;
@@ -921,12 +940,14 @@ int main(int argc, char* argv[]) {
 					default:
 						reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandState::ERROR FunctionState::UNKNOWN occured\n", __FILENAME__, __FUNCTION__, __LINE__);
 						cmdState = CommandState::ERROR;
+						while(ros::ok());
 					break;
 				}
 			break;
 			default:
 				reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandState::UNKNOWN occured\n", __FILENAME__, __FUNCTION__, __LINE__);
 				cmdState = CommandState::ERROR;
+				while(ros::ok());
 			break;
 		}
 		gInfo.cmdState = cmdState;
@@ -1017,6 +1038,7 @@ void setState() {
 		break;
 		default:
 			reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandState::UNKNOWN occured\n", __FILENAME__, __FUNCTION__, __LINE__);
+			while(ros::ok());
 		break;
 	}
 	memset((uint8_t*)&info.state.funcStateDetail, NULL_CHAR, sizeof(int32_t)*((int32_t)((int32_t)FunctionState::ERROR)+ENUM_MAX_VAL));
@@ -1048,6 +1070,7 @@ void setState() {
 		break;
 		default:
 			reprintf(ScreenOutput::DEFAULT, "[%s{%s}(%d)] : CommandState::UNKNOWN occured\n", __FILENAME__, __FUNCTION__, __LINE__);
+			while(ros::ok());
 		break;
 	}
 }
