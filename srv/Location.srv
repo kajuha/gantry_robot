@@ -1,5 +1,9 @@
+# 이동할 값 (m)
 float64 x
 float64 y
 float64 z
 ---
+# 서비스에 대한 결과값
+# 정상적이면 1 리턴
+# 에러시 -1 리턴
 bool success

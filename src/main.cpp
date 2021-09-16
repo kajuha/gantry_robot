@@ -29,7 +29,6 @@
 #include "L7P.h"
 #include "ObjectDictionary.h"
 #include "main.h"
-#include "deprecated.h"
 
 std::queue<AxisMsg> queueModbus;
 std::queue<CommandState> queueCommandState;
@@ -111,7 +110,6 @@ void modbusLoop(int rate, std::queue<AxisMsg>* queueModbus, ModbusLoopState* mod
 		// 3축 position할 경우 20.87 Hz
 		// 3축 speed 경우 20.87 Hz
 		// 3축 io 경우 20.87 Hz
-		// 타임아웃관련 문제일 수 있음
         size = queueModbus->size();
 
         if (size) {
