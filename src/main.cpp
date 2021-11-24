@@ -405,7 +405,7 @@ int main(int argc, char* argv[]) {
 	double ts_diff;
 	double ts_elap;
 
-#define MAIN_HZ	10
+#define MAIN_HZ	1000
 	ros::Rate r(MAIN_HZ);
 
 	ts_run = ros::Time::now().toSec();
